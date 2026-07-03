@@ -1,3 +1,3 @@
-# Copy to .env.local and fill from your Supabase project settings → API
-VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR-ANON-KEY
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+export default defineConfig({ plugins: [react()] });

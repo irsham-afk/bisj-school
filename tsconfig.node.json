@@ -1,84 +1,11 @@
-# Deployment checklist (one-time, technical)
-
-For the person setting this up once. After this, the school administrator runs
-everything from inside the app (see HANDOVER.md) and never touches these tools.
-
-Target: **hosted** Supabase + a static host (Vercel/Netlify/Cloudflare Pages).
-Free at one school's scale. ~30 minutes.
-
-> Hosted vs local note: on **hosted** Supabase the `auth` schema, `auth.uid()`,
-> and the `anon`/`authenticated`/`service_role` roles already exist. So you only
-> apply the app schema + a small bootstrap here. The files
-> `10-auth-helpers.sql`, `00-roles.sh`, and `30-grants.sql` from the local
-> bundle are for self-hosting **only** — do not run them on hosted Supabase.
-
----
-
-## 1. Create the Supabase project
-- supabase.com → New project. Pick the nearest region. **Save the database
-  password.**
-- Project Settings → API. Copy: **Project URL**, **anon key**, **service_role
-  key** (keep service_role secret — server only).
-
-## 2. Apply the database
-In the SQL editor, run, in order:
-1. `schema_v3.2.sql`
-2. `schema_v3.3_timetable.sql`
-3. `schema_v3.4_stages.sql`
-
-(These create the tables, RLS, functions, and timetable/stage features.)
-
-## 3. Create the first admin
-- Authentication → Users → **Add user**: email + password, tick *auto-confirm*.
-  Copy the new user's UUID.
-- SQL editor — create the school and the admin profile (replace the UUID):
-  ```sql
-  insert into schools (id, name, principal_name)
-  values (gen_random_uuid(), 'Your School', 'Principal') returning id;
-  -- use the returned school id below:
-  insert into profiles (id, school_id, full_name, email, role, is_teaching)
-  values ('<new-auth-user-uuid>', '<school-id>', 'School Admin',
-          'admin@yourschool.example', 'admin', false);
-  ```
-- (Optional) add a grading scale — see the bootstrap block in `schema_v3.2.sql`.
-
-## 4. Deploy the user-management function
-The "Teachers & staff" screen calls this. `SUPABASE_URL` and
-`SUPABASE_SERVICE_ROLE_KEY` are injected into Edge Functions automatically — no
-secrets to set.
-```bash
-npm i -g supabase
-supabase login
-supabase link --project-ref <your-project-ref>
-supabase functions deploy admin-users
-```
-
-## 5. Deploy the front-end
-- Push the `school-admin` folder to a Git repo, then import it in **Vercel**
-  (framework: Vite). Set environment variables:
-  ```
-  VITE_SUPABASE_URL = https://<project>.supabase.co
-  VITE_SUPABASE_ANON_KEY = <anon key>
-  ```
-- Deploy. (Netlify/Cloudflare Pages work the same way: build `npm run build`,
-  publish `dist`, set the two env vars.)
-- Put the resulting URL into HANDOVER.md.
-
-## 6. Test
-- Open the site, sign in as the admin.
-- **Teachers & staff → Add person** → add a test teacher. Sign in as them in a
-  private window to confirm. Then disable/reset to confirm those work.
-
-## 7. Strongly recommended
-- Supabase → upgrade to **Pro (~$25/mo)** for automatic daily backups and no
-  project pausing. Worth it for student records.
-- Hand the school the Supabase + Vercel account credentials, stored safely.
-
----
-
-## Notes / gotchas
-- Email sending isn't required: admins set temporary passwords directly, so no
-  SMTP setup is needed.
-- The `admin-users` function is the only privileged path; the browser never
-  holds the service-role key.
-- This deployment uses the same app code as local — only the two env vars differ.
+{
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "strict": true
+  },
+  "include": ["vite.config.ts"]
+}
