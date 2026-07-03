@@ -1,0 +1,89 @@
+# Running the School Console — everyday guide
+
+This is the school's admin system. It's a website: you open a link and sign in.
+There is nothing to install and nothing to keep switched on. This guide is for
+whoever runs it day to day. No technical knowledge needed.
+
+---
+
+## The website
+Your system lives at:
+
+**https://__________________________**  ← write your address here, and bookmark it.
+
+Sign in with your email and password. If you're the administrator, you'll see
+the full menu on the left.
+
+---
+
+## The two accounts that really matter
+Behind the website are two online accounts that keep it running:
+
+1. **Supabase** — holds all the data (students, marks, attendance).
+2. **Vercel** — serves the website itself.
+
+You normally never log into these. But **whoever owns them controls the whole
+system.** Write the email + password for each somewhere safe that the *school*
+keeps — a password manager, or a sealed note held by two senior people. If these
+logins are lost, recovering the system is difficult. This is the single most
+important thing to protect.
+
+Owner of Supabase account: ____________________
+Owner of Vercel account: ____________________
+
+---
+
+## Everyday tasks (all done inside the website)
+
+**Add a teacher or staff member**
+Menu → **Teachers & staff** → **Add person**. Enter their name, email, and a
+temporary password. Tell them those details — they sign in and can change the
+password later.
+
+**Reset someone's password**
+Menu → **Teachers & staff** → **Reset password** next to their name. Type a new
+temporary password and tell them.
+
+**Someone leaves the school**
+Menu → **Teachers & staff** → **Disable** next to their name. This blocks their
+login but keeps everything they entered. **Don't delete people** — disabling is
+the correct, safe action.
+
+**Add or update students**
+Menu → **Students**. To remove a student who has left, use **Archive**, not
+delete — their school record must be kept.
+
+---
+
+## Backups — please read
+This system holds student records, so a backup is not optional.
+
+- **Best option:** turn on **Supabase Pro** (about $25/month). It takes an
+  automatic backup every day and you never think about it again. For a system
+  the school depends on, this is worth it.
+- **Free option:** once a month, log into Supabase → your project →
+  **Database → Backups** (or **Database → Backups / Export**) and download a
+  copy. Keep it somewhere safe (school drive + a second location).
+
+---
+
+## "The project is paused" (only on the free plan)
+If the system has not been used for about a week (e.g. a long holiday), the free
+Supabase plan pauses it. Nothing is lost. To bring it back: log into Supabase,
+open the project, and click **Resume / Restore**. It's back in a minute or two.
+Upgrading to Pro removes this entirely.
+
+---
+
+## If something breaks
+Don't worry and don't change settings. Hire any web developer for an hour and
+give them the file **DEPLOY.md** (in this folder) — it explains exactly how the
+system is set up and how to fix or redeploy it.
+
+---
+
+## What it costs
+- **Today:** free.
+- **Recommended:** about **$25/month** for Supabase Pro once this is the school's
+  real record-keeping system (daily backups + never pauses). Everything else
+  stays free.
