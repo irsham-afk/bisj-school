@@ -17,7 +17,7 @@ export default function Students() {
 
   const { data, loading, refetch } = useFetch<Student[]>(async () => {
     const { data, error } = await supabase
-      .from("students").select("*").is("archived_at", null)
+      .from("students").select("*, enrollments(status, classes(name))").is("archived_at", null)
       .order("last_name", { ascending: true });
     if (error) throw error;
     return data as Student[];
@@ -73,12 +73,12 @@ export default function Students() {
         ) : !data || data.length === 0 ? (
           <Empty title="No students yet" hint="Add your first student to start the register." />
         ) : (
-          <Table head={["Adm. no", "Name", "DOB", "Status", ""]}>
+          <Table head={["Adm. no", "Name", "Class", "Status", ""]}>
             {data.map((s) => (
               <tr key={s.id} className="hover:bg-paper/60">
                 <td className="px-4 py-2.5 font-mono text-xs text-muted">{s.admission_no ?? "—"}</td>
                 <td className="px-4 py-2.5">{s.last_name}, {s.first_name}</td>
-                <td className="px-4 py-2.5 font-mono text-xs">{s.date_of_birth ?? "—"}</td>
+                <td className="px-4 py-2.5">{(s as any).enrollments?.find((e: any) => e.status === "active")?.classes?.name ?? "—"}</td>
                 <td className="px-4 py-2.5"><span className="text-xs uppercase tracking-wide text-muted">{s.status}</span></td>
                 <td className="px-4 py-2.5 text-right whitespace-nowrap">
                   <button className="text-sm text-brand hover:underline mr-3" onClick={() => startEdit(s)}>Edit</button>

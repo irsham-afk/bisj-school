@@ -19,6 +19,12 @@ export default function Users() {
   const [add, setAdd] = useState({ full_name: "", email: "", role: "teacher", password: "" });
   const [newPass, setNewPass] = useState("");
   const [busy, setBusy] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const [bulkPass, setBulkPass] = useState("Bisj2026!");
+  const [bulkDomain, setBulkDomain] = useState("bisj.school");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkResults, setBulkResults] = useState<{ name: string; email: string; ok: boolean; error?: string }[]>([]);
 
   const { data, loading, refetch } = useFetch<Profile[]>(async () => {
     const { data, error } = await supabase
@@ -36,6 +42,29 @@ export default function Users() {
     setAddOpen(false);
     setAdd({ full_name: "", email: "", role: "teacher", password: "" });
     refetch();
+  }
+
+  function emailFor(raw: string) {
+    const full = raw.replace(/^(Ms|Mr|Mrs|Miss)\.?\s*/i, "").trim();
+    const first = (full.split(/\s+/)[0] || "user").toLowerCase().replace(/[^a-z0-9]/g, "");
+    return { full, email: `${first}@${bulkDomain}` };
+  }
+
+  async function bulkCreate() {
+    const names = bulkText.split("\n").map((x) => x.trim()).filter(Boolean);
+    if (names.length === 0) { toast("Paste at least one name", "error"); return; }
+    if (bulkPass.length < 8) { toast("The shared password must be at least 8 characters", "error"); return; }
+    setBulkBusy(true); setBulkResults([]);
+    const results: { name: string; email: string; ok: boolean; error?: string }[] = [];
+    for (const raw of names) {
+      const { full, email } = emailFor(raw);
+      const r = await callAdmin({ action: "create", full_name: full, email, role: "teacher", password: bulkPass, is_teaching: true });
+      results.push({ name: full, email, ok: !!r.ok, error: r.error });
+      setBulkResults([...results]);
+    }
+    setBulkBusy(false);
+    refetch();
+    toast(`Created ${results.filter((r) => r.ok).length} of ${names.length}`);
   }
 
   async function toggleActive(u: Profile) {
@@ -61,7 +90,10 @@ export default function Users() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted">Teachers and staff who can sign in.</p>
-        <Button onClick={() => setAddOpen(true)}>Add person</Button>
+        <div className="flex gap-2">
+          <Button variant="ghost" onClick={() => { setBulkResults([]); setBulkOpen(true); }}>Add many</Button>
+          <Button onClick={() => setAddOpen(true)}>Add person</Button>
+        </div>
       </div>
 
       <Card>
@@ -114,6 +146,44 @@ export default function Users() {
             <Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button>
             <Button onClick={createUser} disabled={busy || !add.full_name || !add.email || add.password.length < 8}>
               {busy ? "Adding…" : "Add person"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={bulkOpen} onClose={() => setBulkOpen(false)} title="Add many teachers at once">
+        <div className="space-y-3">
+          <p className="text-xs text-muted">Paste one full name per line. Each gets a login email made from their first name, and the same starting password below. They can change it after first sign-in.</p>
+          <Field label="Names (one per line)">
+            <textarea value={bulkText} onChange={(e) => setBulkText(e.target.value)} rows={8}
+              placeholder={"Shifana\nNiveen\nAzra"}
+              className="w-full rounded-lg border border-line p-2 text-sm font-mono" />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Email domain"><Input value={bulkDomain} onChange={(e) => setBulkDomain(e.target.value)} /></Field>
+            <Field label="Shared starting password"><Input value={bulkPass} onChange={(e) => setBulkPass(e.target.value)} /></Field>
+          </div>
+          {bulkText.trim() && (
+            <div className="text-xs text-muted">
+              First login will be <span className="font-mono">{emailFor(bulkText.split("\n").map((x)=>x.trim()).filter(Boolean)[0] || "")?.email}</span>
+            </div>
+          )}
+          {bulkResults.length > 0 && (
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-line divide-y text-sm">
+              {bulkResults.map((r, i) => (
+                <div key={i} className="flex items-center gap-2 px-3 py-1.5">
+                  <span className={r.ok ? "text-ok" : "text-danger"}>{r.ok ? "\u2713" : "\u2717"}</span>
+                  <span className="flex-1">{r.name}</span>
+                  <span className="font-mono text-xs text-muted">{r.email}</span>
+                  {!r.ok && <span className="text-xs text-danger">{r.error}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="ghost" onClick={() => setBulkOpen(false)}>Close</Button>
+            <Button onClick={bulkCreate} disabled={bulkBusy || !bulkText.trim() || bulkPass.length < 8}>
+              {bulkBusy ? "Creating\u2026" : "Create all"}
             </Button>
           </div>
         </div>

@@ -3,19 +3,24 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { Button } from "./ui";
 
-const NAV = [
-  { to: "/", label: "Dashboard", end: true, roles: ["admin", "teacher", "staff"] },
-  { to: "/students", label: "Students", roles: ["admin"] },
-  { to: "/classes", label: "Classes", roles: ["admin"] },
-  { to: "/subjects", label: "Subjects", roles: ["admin"] },
-  { to: "/grades", label: "Grade levels", roles: ["admin"] },
-  { to: "/years", label: "Years & terms", roles: ["admin"] },
-  { to: "/events", label: "Events", roles: ["admin"] },
-  { to: "/marks", label: "Marks entry", roles: ["admin", "teacher"] },
-  { to: "/ptm", label: "PTM entry", roles: ["admin", "teacher"] },
-  { to: "/attendance", label: "Attendance & remarks", roles: ["admin", "teacher"] },
-  { to: "/reports", label: "Report cards", roles: ["admin"] },
-  { to: "/users", label: "Teachers & staff", roles: ["admin"] },
+type Item = { to: string; label: string; end?: boolean; roles: string[]; group: string };
+
+const NAV: Item[] = [
+  { to: "/", label: "Dashboard", end: true, roles: ["admin", "teacher", "staff"], group: "" },
+  // the core loop — every term
+  { to: "/events", label: "Exams & PTM", roles: ["admin"], group: "Every term" },
+  { to: "/reports", label: "Report cards", roles: ["admin"], group: "Every term" },
+  // teacher entry
+  { to: "/marks", label: "Marks entry", roles: ["admin", "teacher"], group: "Enter" },
+  { to: "/ptm", label: "PTM entry", roles: ["admin", "teacher"], group: "Enter" },
+  { to: "/attendance", label: "Attendance & remarks", roles: ["admin", "teacher"], group: "Enter" },
+  // setup — rarely needed once loaded
+  { to: "/students", label: "Students", roles: ["admin"], group: "Setup" },
+  { to: "/classes", label: "Classes", roles: ["admin"], group: "Setup" },
+  { to: "/subjects", label: "Subjects", roles: ["admin"], group: "Setup" },
+  { to: "/grades", label: "Grade levels", roles: ["admin"], group: "Setup" },
+  { to: "/years", label: "Years & terms", roles: ["admin"], group: "Setup" },
+  { to: "/users", label: "Teachers & staff", roles: ["admin"], group: "Setup" },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -25,6 +30,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const loc = useLocation();
   const current = nav.find((n) => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)));
 
+  let lastGroup = "";
   return (
     <div className="min-h-screen flex">
       <aside className="w-56 shrink-0 border-r border-line bg-surface flex flex-col">
@@ -33,15 +39,24 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div className="font-display text-lg text-ink leading-tight">{school?.name ?? "School"}</div>
         </div>
         <nav className="flex-1 p-2 overflow-y-auto">
-          {nav.map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.end}
-              className={({ isActive }) =>
-                `block rounded px-3 py-2 text-sm mb-0.5 ${
-                  isActive ? "bg-brand-50 text-brand font-medium" : "text-ink/80 hover:bg-paper"
-                }`}>
-              {n.label}
-            </NavLink>
-          ))}
+          {nav.map((n) => {
+            const showHeading = n.group && n.group !== lastGroup;
+            lastGroup = n.group;
+            return (
+              <div key={n.to}>
+                {showHeading && (
+                  <div className="px-3 pt-4 pb-1 text-[10px] font-mono uppercase tracking-widest text-muted/70">{n.group}</div>
+                )}
+                <NavLink to={n.to} end={n.end}
+                  className={({ isActive }) =>
+                    `block rounded px-3 py-2 text-sm mb-0.5 ${
+                      isActive ? "bg-brand-50 text-brand font-medium" : "text-ink/80 hover:bg-paper"
+                    }`}>
+                  {n.label}
+                </NavLink>
+              </div>
+            );
+          })}
         </nav>
         <div className="p-3 border-t border-line">
           <div className="px-2 py-1.5 mb-2">
