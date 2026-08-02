@@ -14,6 +14,7 @@ const NAV: Item[] = [
   { to: "/marks", label: "Marks entry", roles: ["admin", "teacher"], group: "Enter" },
   { to: "/ptm", label: "PTM entry", roles: ["admin", "teacher"], group: "Enter" },
   { to: "/attendance", label: "Attendance & remarks", roles: ["admin", "teacher"], group: "Enter" },
+  { to: "/requests", label: "Access requests", roles: ["admin", "teacher"], group: "Enter" },
   // setup — rarely needed once loaded
   { to: "/students", label: "Students", roles: ["admin"], group: "Setup" },
   { to: "/classes", label: "Classes", roles: ["admin"], group: "Setup" },

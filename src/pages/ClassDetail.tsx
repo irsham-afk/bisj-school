@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Button, Card, Empty, Field, Modal, Select, useToast } from "../components/ui";
+import { Button, Card, Empty, Field, Input, Modal, Select, useToast } from "../components/ui";
 import {
   getClassInfo, listTeachers, listSubjects, listClassSubjects, addClassSubject,
   setClassSubjectTeacher, removeClassSubject, setHomeroom, listEnrolled,
@@ -8,6 +8,7 @@ import {
   listEnrollmentSubjects, setEnrollmentSubjects,
   type ClassInfo, type CsRow, type EnrolledStudent, type Pick,
 } from "../lib/classadmin";
+import { supabase } from "../lib/supabase";
 
 export default function ClassDetail() {
   const { id = "" } = useParams();
@@ -26,6 +27,8 @@ export default function ClassDetail() {
   const [enrollable, setEnrollable] = useState<Pick[]>([]);
   const [pickStudent, setPickStudent] = useState("");
   const [busy, setBusy] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
 
   // per-student subject editor
   const [subjFor, setSubjFor] = useState<EnrolledStudent | null>(null);
@@ -49,6 +52,15 @@ export default function ClassDetail() {
   }, [id]);
 
   const teacherName = (tid: string) => teachers.find((t) => t.id === tid)?.name ?? "—";
+
+  async function saveName() {
+    if (!nameDraft.trim() || !info) { setRenaming(false); return; }
+    try {
+      const { error } = await supabase.from("classes").update({ name: nameDraft.trim() }).eq("id", id);
+      if (error) throw error;
+      setInfo({ ...info, name: nameDraft.trim() }); setRenaming(false); toast("Class renamed");
+    } catch (e: any) { toast(e.message ?? "Could not rename", "error"); }
+  }
 
   async function doAddSubject() {
     if (!newSub.subjectId) return;
@@ -118,7 +130,18 @@ export default function ClassDetail() {
     <div className="space-y-5">
       <div>
         <Link to="/classes" className="text-sm text-brand">‹ All classes</Link>
-        <h1 className="text-xl font-semibold mt-1">{info.name}</h1>
+        {renaming ? (
+          <div className="flex items-center gap-2 mt-1">
+            <Input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} className="max-w-[200px]" />
+            <Button onClick={saveName}>Save</Button>
+            <Button variant="ghost" onClick={() => setRenaming(false)}>Cancel</Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 mt-1">
+            <h1 className="text-xl font-semibold">{info.name}</h1>
+            <button className="text-sm text-brand hover:underline" onClick={() => { setNameDraft(info.name); setRenaming(true); }}>Rename</button>
+          </div>
+        )}
         <p className="text-sm text-muted">{info.gradeName} · {info.yearName}</p>
       </div>
 

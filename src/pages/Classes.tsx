@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useFetch } from "../lib/useFetch";
 import { useAuth } from "../auth/AuthProvider";
@@ -56,13 +57,14 @@ export default function Classes() {
           : !classes.data || classes.data.length === 0
             ? <Empty title="No classes yet" hint="Create a class to place students into." />
             : (
-              <Table head={["Class", "Grade", "Year", "Homeroom"]}>
+              <Table head={["Class", "Grade", "Year", "Homeroom", ""]}>
                 {classes.data.map((c) => (
                   <tr key={c.id} className="hover:bg-paper/60">
-                    <td className="px-4 py-2.5 font-medium">{c.name}</td>
+                    <td className="px-4 py-2.5 font-medium"><Link to={`/classes/${c.id}`} className="text-brand hover:underline">{c.name}</Link></td>
                     <td className="px-4 py-2.5">{gradeName(c.grade_level_id)}</td>
                     <td className="px-4 py-2.5 font-mono text-xs">{yearName(c.academic_year_id)}</td>
                     <td className="px-4 py-2.5">{teacherName(c.homeroom_teacher_id)}</td>
+                    <td className="px-4 py-2.5 text-right"><Link to={`/classes/${c.id}`} className="text-sm text-brand hover:underline">Open ›</Link></td>
                   </tr>
                 ))}
               </Table>

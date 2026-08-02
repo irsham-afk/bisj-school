@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useFetch } from "../lib/useFetch";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import type { Profile } from "../lib/types";
 import { Button, Card, Empty, Field, Input, Modal, Select, Table, useToast } from "../components/ui";
@@ -103,7 +104,7 @@ export default function Users() {
             <Table head={["Name", "Email", "Role", "Status", ""]}>
               {data.map((u) => (
                 <tr key={u.id} className="hover:bg-paper/60">
-                  <td className="px-4 py-2.5">{u.full_name}{u.id === profile?.id && <span className="text-muted text-xs"> (you)</span>}</td>
+                  <td className="px-4 py-2.5"><Link to={`/users/${u.id}`} className="text-brand hover:underline font-medium">{u.full_name}</Link>{u.id === profile?.id && <span className="text-muted text-xs"> (you)</span>}</td>
                   <td className="px-4 py-2.5 font-mono text-xs text-muted">{u.email ?? "—"}</td>
                   <td className="px-4 py-2.5 text-xs uppercase tracking-wide text-muted">{u.role}</td>
                   <td className="px-4 py-2.5">

@@ -14,6 +14,8 @@ export default function Students() {
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState<Record<string, string>>(blank);
   const [busy, setBusy] = useState(false);
+  const [sortKey, setSortKey] = useState<"admission_no" | "name" | "class" | "status">("name");
+  const [sortDir, setSortDir] = useState<1 | -1>(1);
 
   const { data, loading, refetch } = useFetch<Student[]>(async () => {
     const { data, error } = await supabase
@@ -60,6 +62,25 @@ export default function Students() {
     toast("Student archived"); refetch();
   }
 
+  const clsName = (x: any) => x.enrollments?.find((e: any) => e.status === "active")?.classes?.name ?? "";
+  function toggleSort(k: typeof sortKey) {
+    if (k === sortKey) setSortDir((d) => (d === 1 ? -1 : 1));
+    else { setSortKey(k); setSortDir(1); }
+  }
+  const arrow = (k: typeof sortKey) => (sortKey === k ? (sortDir === 1 ? " \u2191" : " \u2193") : "");
+  const rows = [...(data ?? [])].sort((a: any, b: any) => {
+    let av: any, bv: any;
+    if (sortKey === "admission_no") { av = Number(a.admission_no) || 0; bv = Number(b.admission_no) || 0; }
+    else if (sortKey === "class") { av = clsName(a); bv = clsName(b); }
+    else if (sortKey === "status") { av = a.status ?? ""; bv = b.status ?? ""; }
+    else { av = `${a.last_name} ${a.first_name}`.toLowerCase(); bv = `${b.last_name} ${b.first_name}`.toLowerCase(); }
+    return (av < bv ? -1 : av > bv ? 1 : 0) * sortDir;
+  });
+
+  const HeadBtn = ({ k, label }: { k: typeof sortKey; label: string }) => (
+    <button onClick={() => toggleSort(k)} className="uppercase tracking-wide hover:text-brand">{label}{arrow(k)}</button>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -73,8 +94,8 @@ export default function Students() {
         ) : !data || data.length === 0 ? (
           <Empty title="No students yet" hint="Add your first student to start the register." />
         ) : (
-          <Table head={["Adm. no", "Name", "Class", "Status", ""]}>
-            {data.map((s) => (
+          <Table head={[<HeadBtn k="admission_no" label="Adm. no" />, <HeadBtn k="name" label="Name" />, <HeadBtn k="class" label="Class" />, <HeadBtn k="status" label="Status" />, ""]}>
+            {rows.map((s) => (
               <tr key={s.id} className="hover:bg-paper/60">
                 <td className="px-4 py-2.5 font-mono text-xs text-muted">{s.admission_no ?? "—"}</td>
                 <td className="px-4 py-2.5">{s.last_name}, {s.first_name}</td>

@@ -125,3 +125,69 @@ export async function setEnrollmentSubjects(enrollmentId: string, selected: stri
     if (error) throw error;
   }
 }
+
+// ---- per-teacher views ----
+export type TeacherAssignment = { csId: string; classId: string; className: string; subjectName: string };
+
+export async function listTeacherAssignments(teacherId: string): Promise<TeacherAssignment[]> {
+  const { data, error } = await supabase
+    .from("class_subjects")
+    .select("id, class:classes(id, name), subject:subjects(name)")
+    .eq("teacher_id", teacherId).is("archived_at", null);
+  if (error) throw error;
+  return (data ?? [])
+    .map((r: any) => ({ csId: r.id, classId: r.class?.id ?? "", className: r.class?.name ?? "—", subjectName: r.subject?.name ?? "—" }))
+    .sort((a: TeacherAssignment, b: TeacherAssignment) => a.className.localeCompare(b.className) || a.subjectName.localeCompare(b.subjectName));
+}
+
+export async function listHomeroomClasses(teacherId: string): Promise<Pick[]> {
+  const { data, error } = await supabase.from("classes").select("id, name").eq("homeroom_teacher_id", teacherId);
+  if (error) throw error;
+  return (data ?? []).map((c: any) => ({ id: c.id, name: c.name }));
+}
+
+export async function listClassesForSchool(schoolId: string): Promise<Pick[]> {
+  const { data, error } = await supabase.from("classes").select("id, name").eq("school_id", schoolId).order("name");
+  if (error) throw error;
+  return (data ?? []).map((c: any) => ({ id: c.id, name: c.name }));
+}
+
+export async function getProfileName(id: string): Promise<{ name: string; role: string }> {
+  const { data, error } = await supabase.from("profiles").select("full_name, role").eq("id", id).single();
+  if (error) throw error;
+  return { name: (data as any)?.full_name ?? "—", role: (data as any)?.role ?? "" };
+}
+
+// ---- per-subject views ----
+export type SubjectClass = { csId: string; classId: string; className: string; teacherId: string | null; teacherName: string };
+
+export async function getSubjectInfo(id: string): Promise<{ name: string; isElective: boolean; schoolId: string }> {
+  const { data, error } = await supabase.from("subjects").select("name, is_elective, school_id").eq("id", id).single();
+  if (error) throw error;
+  return { name: (data as any).name, isElective: !!(data as any).is_elective, schoolId: (data as any).school_id };
+}
+
+export async function listSubjectClasses(subjectId: string): Promise<SubjectClass[]> {
+  const { data, error } = await supabase
+    .from("class_subjects")
+    .select("id, class:classes(id, name), teacher_id, teacher:profiles(full_name)")
+    .eq("subject_id", subjectId).is("archived_at", null);
+  if (error) throw error;
+  return (data ?? [])
+    .map((r: any) => ({ csId: r.id, classId: r.class?.id ?? "", className: r.class?.name ?? "—", teacherId: r.teacher_id, teacherName: r.teacher?.full_name ?? "Unassigned" }))
+    .sort((a: SubjectClass, b: SubjectClass) => a.className.localeCompare(b.className));
+}
+
+export async function listClassesWithoutSubject(schoolId: string, subjectId: string): Promise<Pick[]> {
+  const [{ data: allC }, { data: has }] = await Promise.all([
+    supabase.from("classes").select("id, name").eq("school_id", schoolId).order("name"),
+    supabase.from("class_subjects").select("class_id").eq("subject_id", subjectId).is("archived_at", null),
+  ]);
+  const taken = new Set((has ?? []).map((r: any) => r.class_id));
+  return (allC ?? []).filter((c: any) => !taken.has(c.id)).map((c: any) => ({ id: c.id, name: c.name }));
+}
+
+export async function renameSubject(id: string, name: string) {
+  const { error } = await supabase.from("subjects").update({ name }).eq("id", id);
+  if (error) throw error;
+}

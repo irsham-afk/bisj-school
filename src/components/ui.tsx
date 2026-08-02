@@ -60,13 +60,13 @@ export function Modal({
 }
 
 /* ---------- Table ---------- */
-export function Table({ head, children }: { head: string[]; children: ReactNode }) {
+export function Table({ head, children }: { head: ReactNode[]; children: ReactNode }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-xs uppercase tracking-wide text-muted border-b border-line">
-            {head.map((h) => <th key={h} className="font-medium px-4 py-2.5 whitespace-nowrap">{h}</th>)}
+            {head.map((h, i) => <th key={i} className="font-medium px-4 py-2.5 whitespace-nowrap">{h}</th>)}
           </tr>
         </thead>
         <tbody className="divide-y divide-line">{children}</tbody>

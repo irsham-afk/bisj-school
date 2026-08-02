@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useFetch } from "../lib/useFetch";
 import { useAuth } from "../auth/AuthProvider";
@@ -38,12 +39,13 @@ export default function Subjects() {
         {loading ? <Empty title="Loading…" hint="" />
           : !data || data.length === 0 ? <Empty title="No subjects yet" hint="Add the subjects your school teaches." />
           : (
-            <Table head={["Code", "Subject", "Type"]}>
+            <Table head={["Code", "Subject", "Type", ""]}>
               {data.map((s) => (
                 <tr key={s.id} className="hover:bg-paper/60">
                   <td className="px-4 py-2.5 font-mono text-xs text-muted">{s.code ?? "—"}</td>
-                  <td className="px-4 py-2.5">{s.name}</td>
+                  <td className="px-4 py-2.5"><Link to={`/subjects/${s.id}`} className="text-brand hover:underline">{s.name}</Link></td>
                   <td className="px-4 py-2.5 text-xs uppercase tracking-wide text-muted">{s.is_elective ? "Elective" : "Core"}</td>
+                  <td className="px-4 py-2.5 text-right"><Link to={`/subjects/${s.id}`} className="text-sm text-brand hover:underline">Details ›</Link></td>
                 </tr>
               ))}
             </Table>
