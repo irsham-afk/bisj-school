@@ -21,8 +21,8 @@ export default function Login() {
     <div className="min-h-screen ledger-grid flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <div className="font-mono text-xs tracking-widest text-brand uppercase">Greenfield</div>
-          <h1 className="font-display text-3xl text-ink mt-1">School Console</h1>
+          <div className="font-mono text-xs tracking-widest text-brand uppercase">Sign in</div>
+          <h1 className="font-display text-3xl text-ink mt-1">British International School Japan</h1>
           <p className="text-sm text-muted mt-1">Sign in to manage students, classes and reports.</p>
         </div>
         <Card className="p-6">

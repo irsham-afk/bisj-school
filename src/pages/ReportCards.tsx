@@ -5,6 +5,8 @@ import { listHomeroomClasses, listTerms, type HomeroomClass } from "../lib/atten
 import type { Term } from "../lib/marks";
 import { loadClassReports, type ClassReportData } from "../lib/reportcards";
 import { buildReportHtml } from "../lib/reportCardHtml";
+import { loadClassResultsGrid, downloadResultsExcel } from "../lib/excelExport";
+import { supabase } from "../lib/supabase";
 
 export default function ReportCards() {
   const { profile } = useAuth();
@@ -19,6 +21,7 @@ export default function ReportCards() {
   const [term, setTerm] = useState<Term | null>(null);
   const [data, setData] = useState<ClassReportData | null>(null);
   const [busy, setBusy] = useState(false);
+  const [xlsxBusy, setXlsxBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -47,6 +50,18 @@ export default function ReportCards() {
     const w = window.open("", "_blank");
     if (!w) { toast("Allow pop-ups to open the print view", "error"); return; }
     w.document.write(html); w.document.close();
+  }
+
+  async function downloadExcel() {
+    if (!cls || !term) return;
+    setXlsxBusy(true);
+    try {
+      const { data: sch } = await supabase.from("schools").select("name").limit(1).single();
+      const sheet = await loadClassResultsGrid(cls.id, term.id);
+      await downloadResultsExcel(sch?.name ?? "School", [sheet], `${cls.name}_${term.name}_results.xlsx`.replace(/[^\w.]+/g, "_"));
+      toast("Excel downloaded");
+    } catch (e: any) { toast(e.message ?? "Could not build the Excel file", "error"); }
+    finally { setXlsxBusy(false); }
   }
 
   if (loading) return <Card><p className="p-4 text-muted text-sm">Loading…</p></Card>;
@@ -100,7 +115,10 @@ export default function ReportCards() {
 
         <div className="bg-white border rounded-xl p-4 space-y-3">
           <p className="text-sm">Opens a print-ready view of all {data.students.length} cards — one per page, in school colours. Use your browser's <b>Save as PDF</b> to get the whole class as one file, or print directly.</p>
-          <Button onClick={openPrint}>Open print view ({data.students.length} cards)</Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={openPrint}>Open print view ({data.students.length} cards)</Button>
+            <Button variant="ghost" onClick={downloadExcel} disabled={xlsxBusy}>{xlsxBusy ? "Building…" : "Download Excel sheet"}</Button>
+          </div>
           {data.bands.length === 0 && <p className="text-xs text-danger">No grade scale is set for this school yet, so grade letters won't show. Set it on the school setup before generating.</p>}
         </div>
        </>}

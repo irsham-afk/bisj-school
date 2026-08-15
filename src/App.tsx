@@ -19,6 +19,7 @@ import AttendanceRemarks from "./pages/AttendanceRemarks";
 import ReportCards from "./pages/ReportCards";
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
+import Promotion from "./pages/Promotion";
 import Requests from "./pages/Requests";
 
 function Shell() {
@@ -36,6 +37,7 @@ function Shell() {
         <Route path="/subjects/:id" element={<SubjectDetail />} />
         <Route path="/grades" element={<GradeLevels />} />
         <Route path="/years" element={<AcademicYears />} />
+        <Route path="/promotion" element={<Promotion />} />
         <Route path="/marks" element={<MarksEntry />} />
         <Route path="/ptm" element={<PtmEntry />} />
         <Route path="/attendance" element={<AttendanceRemarks />} />
