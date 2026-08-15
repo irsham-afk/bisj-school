@@ -132,7 +132,7 @@ export default function MarksEntry() {
             </button>
           ))}
         {homerooms.map((h) => (
-          <Link key={h.id} to="/attendance"
+          <Link key={h.id} to={`/attendance/${ev!.id}`}
             className="w-full text-left bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-center gap-3 hover:bg-amber-100">
             <span className="w-10 h-10 rounded-lg bg-amber-500 text-white grid place-items-center font-semibold text-xs shrink-0">HR</span>
             <span className="flex-1 min-w-0">
@@ -164,7 +164,7 @@ export default function MarksEntry() {
             </button>
           ))}
         {homerooms.map((h) => (
-          <Link key={h.id} to="/attendance"
+          <Link key={h.id} to={`/attendance/${ev!.id}`}
             className="w-full text-left bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-center gap-3 hover:bg-amber-100">
             <span className="w-10 h-10 rounded-lg bg-amber-500 text-white grid place-items-center font-semibold text-xs shrink-0">HR</span>
             <span className="flex-1 min-w-0">

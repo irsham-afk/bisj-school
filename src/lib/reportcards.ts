@@ -65,7 +65,9 @@ export async function loadClassReports(classId: string, termId: string, eventId?
   // attendance + remark per student
   const stuIds = (enrs ?? []).map((e: any) => e.student.id);
   const { data: rcs } = stuIds.length
-    ? await supabase.from("report_cards").select("student_id, days_present, days_tardy, days_absent, days_total, homeroom_comment, class_teacher_name").eq("term_id", termId).in("student_id", stuIds)
+    ? await (eventId
+        ? supabase.from("report_cards").select("student_id, days_present, days_tardy, days_absent, days_total, homeroom_comment, class_teacher_name").eq("event_id", eventId).in("student_id", stuIds)
+        : supabase.from("report_cards").select("student_id, days_present, days_tardy, days_absent, days_total, homeroom_comment, class_teacher_name").eq("term_id", termId).in("student_id", stuIds))
     : { data: [] as any[] };
   const rcByStu: Record<string, any> = {};
   (rcs ?? []).forEach((r: any) => { rcByStu[r.student_id] = r; });

@@ -62,7 +62,7 @@ function Shell() {
         <Route path="/users/:id" element={<Protected roles={ADMIN}><TeacherDetail /></Protected>} />
         <Route path="/marks" element={<Protected roles={TEACHER}><MarksEntry /></Protected>} />
         <Route path="/ptm" element={<Protected roles={TEACHER}><PtmEntry /></Protected>} />
-        <Route path="/attendance" element={<Protected roles={TEACHER}><AttendanceRemarks /></Protected>} />
+        <Route path="/attendance/:eventId" element={<Protected roles={TEACHER}><AttendanceRemarks /></Protected>} />
         <Route path="/requests" element={<Protected roles={BOTH}><Requests /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

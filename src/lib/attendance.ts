@@ -34,12 +34,12 @@ export async function listClassStudents(classId: string): Promise<ClassStudent[]
 }
 
 // Existing attendance summary + remark per student for this term.
-export async function loadReportMeta(termId: string, studentIds: string[]): Promise<Record<string, Meta>> {
+export async function loadReportMeta(eventId: string, studentIds: string[]): Promise<Record<string, Meta>> {
   if (studentIds.length === 0) return {};
   const { data, error } = await supabase
     .from("report_cards")
     .select("student_id, days_present, days_tardy, days_absent, days_total, homeroom_comment")
-    .eq("term_id", termId)
+    .eq("event_id", eventId)
     .in("student_id", studentIds);
   if (error) throw error;
   const out: Record<string, Meta> = {};
@@ -54,12 +54,13 @@ export async function loadReportMeta(termId: string, studentIds: string[]): Prom
 
 // Upsert the class teacher's attendance counts + remark for the term.
 export async function saveReportMeta(
-  termId: string, schoolDays: number | null, classTeacherName: string,
+  eventId: string, termId: string | null, schoolDays: number | null, classTeacherName: string,
   rows: { studentId: string; present: number | null; tardy: number | null; absent: number | null; remark: string }[],
 ): Promise<void> {
   if (rows.length === 0) return;
   const payload = rows.map((r) => ({
     student_id: r.studentId,
+    event_id: eventId,
     term_id: termId,
     days_present: r.present,
     days_tardy: r.tardy,
@@ -68,6 +69,6 @@ export async function saveReportMeta(
     homeroom_comment: r.remark || null,
     class_teacher_name: classTeacherName || null,
   }));
-  const { error } = await supabase.from("report_cards").upsert(payload, { onConflict: "student_id,term_id" });
+  const { error } = await supabase.from("report_cards").upsert(payload, { onConflict: "student_id,event_id" });
   if (error) throw error;
 }
