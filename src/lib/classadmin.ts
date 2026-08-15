@@ -92,9 +92,10 @@ export async function listEnrollableStudents(schoolId: string, classId: string):
     .filter((s: any) => !taken.has(s.id))
     .map((s: any) => ({ id: s.id, name: `${s.first_name} ${s.last_name}${s.admission_no ? ` (${s.admission_no})` : ""}` }));
 }
-export async function enrolStudent(studentId: string, classId: string) {
-  const { error } = await supabase.from("enrollments").insert({ student_id: studentId, class_id: classId });
+export async function enrolStudent(studentId: string, classId: string): Promise<{ id: string }> {
+  const { data, error } = await supabase.from("enrollments").insert({ student_id: studentId, class_id: classId }).select("id").single();
   if (error) throw error;
+  return data as { id: string };
 }
 export async function unenrolStudent(enrollmentId: string) {
   const { error } = await supabase.from("enrollments").update({ status: "withdrawn" }).eq("id", enrollmentId);

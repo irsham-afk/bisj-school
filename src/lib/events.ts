@@ -88,3 +88,24 @@ export async function relock(unlockId: string) {
   const { error } = await supabase.from("event_unlocks").delete().eq("id", unlockId);
   if (error) throw error;
 }
+
+export type EntryRow = { className: string; subjectName: string; teacherName: string; entered: boolean };
+// Which class-subjects have marks entered under this event, and which don't.
+export async function listEntryProgress(eventId: string, academicYearId: string | null, schoolId: string): Promise<EntryRow[]> {
+  const { data: cs } = await supabase.from("class_subjects")
+    .select("id, class:classes!inner(name, academic_year_id, school_id), subject:subjects(name), teacher:profiles(full_name)")
+    .is("archived_at", null);
+  const rows = (cs ?? []).filter((r: any) => r.class?.school_id === schoolId && (!academicYearId || r.class?.academic_year_id === academicYearId));
+  const { data: asmts } = await supabase.from("assessments").select("id, class_subject_id").eq("event_id", eventId);
+  const byId = new Map((asmts ?? []).map((a: any) => [a.id, a.class_subject_id]));
+  const entered = new Set<string>();
+  const ids = (asmts ?? []).map((a: any) => a.id);
+  if (ids.length) {
+    const { data: res } = await supabase.from("results").select("assessment_id").in("assessment_id", ids);
+    (res ?? []).forEach((r: any) => { const c = byId.get(r.assessment_id); if (c) entered.add(c); });
+  }
+  return rows.map((r: any) => ({
+    className: r.class?.name ?? "—", subjectName: r.subject?.name ?? "—",
+    teacherName: r.teacher?.full_name ?? "—", entered: entered.has(r.id),
+  })).sort((a, b) => a.className.localeCompare(b.className) || a.subjectName.localeCompare(b.subjectName));
+}

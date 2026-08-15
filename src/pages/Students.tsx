@@ -4,6 +4,7 @@ import { useFetch } from "../lib/useFetch";
 import { useAuth } from "../auth/AuthProvider";
 import type { Student } from "../lib/types";
 import { Button, Card, Empty, Field, Input, Modal, Select, Table, useToast } from "../components/ui";
+import { listClassesForSchool, listClassSubjects, listEnrollmentSubjects, setEnrollmentSubjects, enrolStudent, unenrolStudent, type Pick, type CsRow } from "../lib/classadmin";
 
 const blank = { admission_no: "", first_name: "", last_name: "", date_of_birth: "", gender: "", status: "active" };
 
@@ -16,10 +17,52 @@ export default function Students() {
   const [busy, setBusy] = useState(false);
   const [sortKey, setSortKey] = useState<"admission_no" | "name" | "class" | "status">("name");
   const [sortDir, setSortDir] = useState<1 | -1>(1);
+  const [csOpen, setCsOpen] = useState(false);
+  const [csStudent, setCsStudent] = useState<any>(null);
+  const [csEnrollmentId, setCsEnrollmentId] = useState<string | null>(null);
+  const [csClasses, setCsClasses] = useState<Pick[]>([]);
+  const [csClassId, setCsClassId] = useState("");
+  const [csOrigClassId, setCsOrigClassId] = useState("");
+  const [csSubs, setCsSubs] = useState<CsRow[]>([]);
+  const [csSel, setCsSel] = useState<Set<string>>(new Set());
+  const [csBusy, setCsBusy] = useState(false);
+
+  async function openClassSubs(s: any) {
+    const enr = s.enrollments?.find((e: any) => e.status === "active");
+    setCsStudent(s); setCsEnrollmentId(enr?.id ?? null);
+    setCsClassId(enr?.class_id ?? ""); setCsOrigClassId(enr?.class_id ?? "");
+    setCsClasses(await listClassesForSchool(profile!.school_id));
+    if (enr?.class_id) {
+      const subs = await listClassSubjects(enr.class_id); setCsSubs(subs);
+      setCsSel(new Set(enr?.id ? await listEnrollmentSubjects(enr.id) : []));
+    } else { setCsSubs([]); setCsSel(new Set()); }
+    setCsOpen(true);
+  }
+  async function onCsClass(cid: string) {
+    setCsClassId(cid);
+    const subs = cid ? await listClassSubjects(cid) : [];
+    setCsSubs(subs);
+    // default: take all subjects the (new) class offers
+    setCsSel(new Set(subs.map((x) => x.id)));
+  }
+  async function saveClassSubs() {
+    setCsBusy(true);
+    try {
+      let enrollmentId = csEnrollmentId;
+      if (csClassId && csClassId !== csOrigClassId) {
+        if (csEnrollmentId) await unenrolStudent(csEnrollmentId);
+        const ne = await enrolStudent(csStudent.id, csClassId);
+        enrollmentId = (ne as any)?.id ?? null;
+      }
+      if (enrollmentId) await setEnrollmentSubjects(enrollmentId, [...csSel]);
+      setCsOpen(false); toast("Saved"); refetch();
+    } catch (e: any) { toast(e.message ?? "Could not save", "error"); }
+    finally { setCsBusy(false); }
+  }
 
   const { data, loading, refetch } = useFetch<Student[]>(async () => {
     const { data, error } = await supabase
-      .from("students").select("*, enrollments(status, classes(name))").is("archived_at", null)
+      .from("students").select("*, enrollments(id, status, class_id, classes(name))").is("archived_at", null)
       .order("last_name", { ascending: true });
     if (error) throw error;
     return data as Student[];
@@ -102,6 +145,7 @@ export default function Students() {
                 <td className="px-4 py-2.5">{(s as any).enrollments?.find((e: any) => e.status === "active")?.classes?.name ?? "—"}</td>
                 <td className="px-4 py-2.5"><span className="text-xs uppercase tracking-wide text-muted">{s.status}</span></td>
                 <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                  <button className="text-sm text-brand hover:underline mr-3" onClick={() => openClassSubs(s)}>Class &amp; subjects</button>
                   <button className="text-sm text-brand hover:underline mr-3" onClick={() => startEdit(s)}>Edit</button>
                   <button className="text-sm text-danger hover:underline" onClick={() => archive(s)}>Archive</button>
                 </td>
@@ -110,6 +154,35 @@ export default function Students() {
           </Table>
         )}
       </Card>
+
+      <Modal open={csOpen} onClose={() => setCsOpen(false)} title={`Class & subjects — ${csStudent?.first_name ?? ""}`}>
+        <div className="space-y-3">
+          <Field label="Class">
+            <Select value={csClassId} onChange={(e) => onCsClass(e.target.value)}>
+              <option value="">— none —</option>
+              {csClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </Field>
+          {csClassId !== csOrigClassId && csClassId && <p className="text-xs text-danger">Moving class will re-enrol the student and reset subjects to this class's list.</p>}
+          <div>
+            <div className="text-xs uppercase tracking-wide text-muted mb-1">Subjects taken</div>
+            <div className="max-h-56 overflow-y-auto border border-line rounded-lg divide-y">
+              {csSubs.length === 0 ? <p className="p-2 text-sm text-muted">No subjects on this class.</p> :
+                csSubs.map((x) => (
+                  <label key={x.id} className="p-2 flex items-center gap-2 text-sm cursor-pointer hover:bg-paper">
+                    <input type="checkbox" checked={csSel.has(x.id)} onChange={() => setCsSel((p) => { const n = new Set(p); n.has(x.id) ? n.delete(x.id) : n.add(x.id); return n; })} />
+                    <span className="flex-1">{x.subjectName}</span>
+                    <span className="text-xs text-muted">{x.teacherName}</span>
+                  </label>
+                ))}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setCsOpen(false)}>Cancel</Button>
+            <Button onClick={saveClassSubs} disabled={csBusy}>{csBusy ? "Saving…" : "Save"}</Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? "Edit student" : "Add student"}>
         <div className="space-y-3">

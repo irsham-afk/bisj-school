@@ -5,7 +5,7 @@ import { listHomeroomClasses, listTerms, type HomeroomClass } from "../lib/atten
 import type { Term } from "../lib/marks";
 import { loadClassReports, type ClassReportData } from "../lib/reportcards";
 import { buildReportHtml } from "../lib/reportCardHtml";
-import { loadClassResultsGrid, downloadResultsExcel } from "../lib/excelExport";
+import { loadClassResultsGrid, downloadResultsExcel, downloadAllGradesExcel } from "../lib/excelExport";
 import { supabase } from "../lib/supabase";
 
 export default function ReportCards() {
@@ -22,10 +22,17 @@ export default function ReportCards() {
   const [data, setData] = useState<ClassReportData | null>(null);
   const [busy, setBusy] = useState(false);
   const [xlsxBusy, setXlsxBusy] = useState(false);
+  const [allTerms, setAllTerms] = useState<Term[]>([]);
+  const [allTermId, setAllTermId] = useState("");
+  const [allBusy, setAllBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
-      try { setClasses(await listHomeroomClasses(uid, role)); }
+      try {
+        const cs = await listHomeroomClasses(uid, role);
+        setClasses(cs);
+        if (cs[0]) { const ts = await listTerms(cs[0].academicYearId); setAllTerms(ts); setAllTermId(ts[0]?.id ?? ""); }
+      }
       catch (e: any) { toast(e.message ?? "Could not load classes", "error"); }
       finally { setLoading(false); }
     })();
@@ -52,6 +59,17 @@ export default function ReportCards() {
     w.document.write(html); w.document.close();
   }
 
+  async function downloadAll() {
+    if (!allTermId) { toast("Pick a term first", "error"); return; }
+    setAllBusy(true);
+    try {
+      const { data: sch } = await supabase.from("schools").select("id, name").limit(1).single();
+      await downloadAllGradesExcel((sch as any).id, (sch as any).name ?? "School", allTermId);
+      toast("Excel downloaded");
+    } catch (e: any) { toast(e.message ?? "Could not build the Excel file", "error"); }
+    finally { setAllBusy(false); }
+  }
+
   async function downloadExcel() {
     if (!cls || !term) return;
     setXlsxBusy(true);
@@ -69,8 +87,20 @@ export default function ReportCards() {
     return <Card><p className="p-4 text-muted text-sm">No classes available to you for report cards.</p></Card>;
 
   if (!cls) return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted">Generate report cards — choose a class.</p>
+    <div className="space-y-4">
+      <Card>
+        <div className="p-4 space-y-2">
+          <h3 className="font-semibold">Download marks as Excel</h3>
+          <p className="text-sm text-muted">One file, one sheet per grade — the whole school's marks together.</p>
+          <div className="flex gap-2 items-end flex-wrap">
+            <select value={allTermId} onChange={(e) => setAllTermId(e.target.value)} className="h-10 rounded-lg border border-line px-3 text-sm">
+              {allTerms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <Button onClick={downloadAll} disabled={allBusy || !allTermId}>{allBusy ? "Building…" : "Download all grades (one file)"}</Button>
+          </div>
+        </div>
+      </Card>
+      <p className="text-sm text-muted pt-1">Or generate printable report cards — choose a class.</p>
       {classes.map((c) => (
         <button key={c.id} onClick={() => pickClass(c)}
           className="w-full text-left bg-white border rounded-xl p-4 flex items-center gap-3 hover:bg-paper">

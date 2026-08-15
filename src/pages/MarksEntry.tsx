@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { Button, Card, useToast } from "../components/ui";
+import { listHomeroomClasses, type Pick } from "../lib/classadmin";
 import {
   listAssignments, listStudentsForSubject, listResults, saveResults,
   listGradeBands, gradeFor, listExamEvents, examOpenForSubject,
@@ -24,6 +26,7 @@ export default function MarksEntry() {
 
   const [events, setEvents] = useState<ExamEvent[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [homerooms, setHomerooms] = useState<Pick[]>([]);
   const [bands, setBands] = useState<GradeBand[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -45,6 +48,7 @@ export default function MarksEntry() {
           listExamEvents(profile!.school_id), listAssignments(uid), listGradeBands(profile!.school_id),
         ]);
         setEvents(e); setAssignments(a); setBands(b);
+        try { setHomerooms(await listHomeroomClasses(uid)); } catch { /* ignore */ }
       } catch (e: any) { toast(e.message ?? "Could not load your exams", "error"); }
       finally { setLoading(false); }
     })();
@@ -127,6 +131,17 @@ export default function MarksEntry() {
               <span className="text-slate-300 text-xl">›</span>
             </button>
           ))}
+        {homerooms.map((h) => (
+          <Link key={h.id} to="/attendance"
+            className="w-full text-left bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-center gap-3 hover:bg-amber-100">
+            <span className="w-10 h-10 rounded-lg bg-amber-500 text-white grid place-items-center font-semibold text-xs shrink-0">HR</span>
+            <span className="flex-1 min-w-0">
+              <span className="block font-semibold">{h.name} — Attendance &amp; remarks</span>
+              <span className="block text-xs text-amber-700">Homeroom teacher only</span>
+            </span>
+            <span className="text-amber-400 text-xl">›</span>
+          </Link>
+        ))}
       </div>
     );
   }
@@ -148,6 +163,17 @@ export default function MarksEntry() {
               <span className="text-slate-300 text-xl">›</span>
             </button>
           ))}
+        {homerooms.map((h) => (
+          <Link key={h.id} to="/attendance"
+            className="w-full text-left bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-center gap-3 hover:bg-amber-100">
+            <span className="w-10 h-10 rounded-lg bg-amber-500 text-white grid place-items-center font-semibold text-xs shrink-0">HR</span>
+            <span className="flex-1 min-w-0">
+              <span className="block font-semibold">{h.name} — Attendance &amp; remarks</span>
+              <span className="block text-xs text-amber-700">Homeroom teacher only</span>
+            </span>
+            <span className="text-amber-400 text-xl">›</span>
+          </Link>
+        ))}
       </div>
     );
   }

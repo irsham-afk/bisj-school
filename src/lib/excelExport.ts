@@ -131,3 +131,18 @@ export async function downloadResultsExcel(school: string, sheets: ResultSheet[]
   a.href = url; a.download = filename; document.body.appendChild(a); a.click();
   a.remove(); URL.revokeObjectURL(url);
 }
+
+// All grades in ONE workbook — a sheet per class, ordered by the grade ladder.
+const GRADE_LADDER = ["NUR","LKG","UKG","G-1","G-2","G-3","G-4","G-5","G-6","G-7","O-1","O-2","O-3","AS","A-2"];
+export async function downloadAllGradesExcel(schoolId: string, school: string, termId: string, eventId?: string) {
+  const { data: term } = await supabase.from("terms").select("academic_year_id, name").eq("id", termId).single();
+  const yearId = (term as any)?.academic_year_id;
+  const { data: classes } = await supabase.from("classes").select("id, name").eq("school_id", schoolId).eq("academic_year_id", yearId);
+  const ordered = (classes ?? []).slice().sort((a: any, b: any) => GRADE_LADDER.indexOf(a.name) - GRADE_LADDER.indexOf(b.name));
+  const sheets: ResultSheet[] = [];
+  for (const c of ordered as any[]) {
+    try { sheets.push(await loadClassResultsGrid(c.id, termId, eventId)); } catch { /* skip a class that fails */ }
+  }
+  if (sheets.length === 0) throw new Error("No classes to export.");
+  await downloadResultsExcel(school, sheets, `AllGrades_${(term as any)?.name ?? "results"}.xlsx`.replace(/[^\w.]+/g, "_"));
+}

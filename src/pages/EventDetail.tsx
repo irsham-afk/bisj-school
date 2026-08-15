@@ -3,8 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { Button, Card, Empty, Field, Input, Select, useToast } from "../components/ui";
 import {
-  getEvent, updateDeadline, listClasses, listClassesInYear, listUnlocks, reopenSubject, reopenClass, relock,
-  type EventRow, type UnlockRow, type Pick,
+  getEvent, updateDeadline, listClasses, listClassesInYear, listUnlocks, reopenSubject, reopenClass, relock, listEntryProgress,
+  type EventRow, type UnlockRow, type Pick, type EntryRow,
 } from "../lib/events";
 import { listClassSubjects, type CsRow } from "../lib/classadmin";
 import { loadClassReports } from "../lib/reportcards";
@@ -30,6 +30,7 @@ export default function EventDetail() {
   const [genClasses, setGenClasses] = useState<Pick[]>([]);
   const [genBusy, setGenBusy] = useState<string | null>(null);
   const [xlsxBusy, setXlsxBusy] = useState(false);
+  const [progress, setProgress] = useState<EntryRow[]>([]);
 
   // reopen picker
   const [cls, setCls] = useState("");
@@ -45,6 +46,9 @@ export default function EventDetail() {
         setEv(e); setDeadline(fmtLocalInput(e.deadline));
         await reloadUnlocks();
         setClasses(await listClasses(profile!.school_id));
+        const inYear = e.academicYearId ? await listClassesInYear(e.academicYearId) : await listClasses(profile!.school_id);
+        setGenClasses(inYear);
+        try { setProgress(await listEntryProgress(id, e.academicYearId, profile!.school_id)); } catch { /* ignore */ }
       } catch (e: any) { toast(e.message ?? "Could not load event", "error"); }
       finally { setLoading(false); }
     })();
@@ -77,16 +81,6 @@ export default function EventDetail() {
 
   if (loading) return <Card><p className="p-4 text-muted text-sm">Loading…</p></Card>;
   if (!ev) return <Card><p className="p-4 text-muted text-sm">Event not found.</p></Card>;
-
-  useEffect(() => {
-    (async () => {
-      if (!ev || ev.kind !== "exam") return;
-      try {
-        const list = ev.academicYearId ? await listClassesInYear(ev.academicYearId) : await listClasses(profile!.school_id);
-        setGenClasses(list);
-      } catch { /* ignore */ }
-    })();
-  }, [ev?.id, ev?.kind]);
 
   async function generateClass(classId: string) {
     if (!ev?.termId) { toast("This exam event has no term set — recreate it with a term.", "error"); return; }
@@ -123,6 +117,27 @@ export default function EventDetail() {
         <p className="text-sm text-muted">
           <span className="uppercase">{ev.kind}</span> · {ev.open ? <span className="text-ok">Open for entry</span> : <span className="text-danger">Closed (deadline passed)</span>}
         </p>
+      </div>
+
+      <div>
+        <h2 className="font-semibold mb-2">Entry progress</h2>
+        <Card>
+          <div className="p-3 text-sm flex gap-4 border-b">
+            <span className="text-ok font-semibold">{progress.filter((r) => r.entered).length} entered</span>
+            <span className="text-danger font-semibold">{progress.filter((r) => !r.entered).length} not entered</span>
+            <span className="text-muted ml-auto">{progress.length} class-subjects</span>
+          </div>
+          <div className="max-h-72 overflow-y-auto divide-y">
+            {progress.map((r, i) => (
+              <div key={i} className="p-2.5 flex items-center gap-3 text-sm">
+                <span className={`text-[11px] px-2 py-0.5 rounded ${r.entered ? "bg-ok/15 text-ok" : "bg-danger/15 text-danger"}`}>{r.entered ? "in" : "—"}</span>
+                <span className="w-14 font-medium">{r.className}</span>
+                <span className="flex-1">{r.subjectName}</span>
+                <span className="text-xs text-muted">{r.teacherName}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
 
       <Card>
