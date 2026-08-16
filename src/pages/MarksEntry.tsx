@@ -4,7 +4,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { Button, Card, useToast } from "../components/ui";
 import { listHomeroomClasses, type Pick } from "../lib/classadmin";
 import {
-  listAssignments, listStudentsForSubject, listResults, saveResults,
+  listAssignments, listStudentsForSubject, listResults, saveResults, listEntryStatusForEvent,
   listGradeBands, gradeFor, listExamEvents, examOpenForSubject,
   findEventAssessment, getOrCreateEventAssessment,
   type Assignment, type MarkStudent, type ResultStatus, type GradeBand, type ExamEvent,
@@ -40,6 +40,8 @@ export default function MarksEntry() {
   const [maxScore, setMaxScore] = useState(100);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const [status, setStatus] = useState<Record<string, { entered: number; total: number }>>({});
 
   useEffect(() => {
     (async () => {
@@ -53,6 +55,14 @@ export default function MarksEntry() {
       finally { setLoading(false); }
     })();
   }, [uid]);
+
+  useEffect(() => {
+    if (!ev) { setStatus({}); return; }
+    (async () => {
+      try { setStatus(await listEntryStatusForEvent(ev.id, assignments.map((a) => a.classSubjectId))); }
+      catch { /* status is best-effort */ }
+    })();
+  }, [ev?.id, assignments]);
 
   async function pickAssignment(a: Assignment) {
     setAsg(a); setBusy(true);
@@ -131,17 +141,6 @@ export default function MarksEntry() {
               <span className="text-slate-300 text-xl">›</span>
             </button>
           ))}
-        {homerooms.map((h) => (
-          <Link key={h.id} to={`/attendance/${ev!.id}`}
-            className="w-full text-left bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-center gap-3 hover:bg-amber-100">
-            <span className="w-10 h-10 rounded-lg bg-amber-500 text-white grid place-items-center font-semibold text-xs shrink-0">HR</span>
-            <span className="flex-1 min-w-0">
-              <span className="block font-semibold">{h.name} — Attendance &amp; remarks</span>
-              <span className="block text-xs text-amber-700">Homeroom teacher only</span>
-            </span>
-            <span className="text-amber-400 text-xl">›</span>
-          </Link>
-        ))}
       </div>
     );
   }
@@ -159,7 +158,16 @@ export default function MarksEntry() {
               <span className="w-10 h-10 rounded-lg bg-brand text-white grid place-items-center font-semibold text-sm shrink-0">
                 {a.className.replace(/[^0-9A-Za-z]/g, "").slice(-2) || "·"}
               </span>
-              <span className="flex-1 min-w-0"><span className="block font-semibold">{a.className} — {a.subjectName}</span></span>
+              <span className="flex-1 min-w-0"><span className="block font-semibold">{a.className} — {a.subjectName}</span>
+                {(() => {
+                  const st = status[a.classSubjectId];
+                  if (!st) return null;
+                  if (st.total === 0) return <span className="block text-xs text-muted">no students</span>;
+                  if (st.entered === 0) return <span className="block text-xs text-danger">Not started</span>;
+                  if (st.entered >= st.total) return <span className="block text-xs text-ok">✓ Complete ({st.total})</span>;
+                  return <span className="block text-xs text-amber-600">{st.entered}/{st.total} entered</span>;
+                })()}
+              </span>
               <span className="text-slate-300 text-xl">›</span>
             </button>
           ))}
@@ -211,16 +219,16 @@ export default function MarksEntry() {
             const pct = d.score !== null ? (d.score / maxScore) * 100 : null;
             const g = pct !== null ? gradeFor(pct, bands) : null;
             return (
-              <div key={s.id} className="flex items-center gap-3 p-3 flex-wrap">
+              <div key={s.id} className={`flex items-center gap-3 p-3 flex-wrap transition-colors ${focusId === s.id ? "bg-brand-50 ring-1 ring-inset ring-brand/30" : ""}`}>
                 <div className="flex-1 min-w-[120px]">
                   <div className="font-semibold">{s.name}</div>
                   <div className="text-xs text-muted">Roll {s.admissionNo ?? "—"}</div>
                 </div>
                 <div className="flex items-center gap-2 ml-auto">
                   <input inputMode="numeric" value={isAbsent ? "" : (d.score ?? "")}
-                    onChange={(e) => setScore(s.id, e.target.value)} disabled={isAbsent || !open} placeholder="–"
+                    onChange={(e) => setScore(s.id, e.target.value)} onFocus={() => setFocusId(s.id)} disabled={isAbsent || !open} placeholder="–"
                     className="w-[74px] h-11 text-center text-lg border rounded-lg disabled:bg-paper disabled:text-slate-300" />
-                  <button onClick={() => toggleAbsent(s.id)} disabled={!open}
+                  <button onClick={() => toggleAbsent(s.id)} onFocus={() => setFocusId(s.id)} disabled={!open}
                     className={`h-11 w-[92px] rounded-lg border text-sm disabled:opacity-50 ${isAbsent ? "bg-slate-500 text-white border-slate-500" : "text-muted"}`}>
                     {isAbsent ? "Absent" : "Absent?"}
                   </button>

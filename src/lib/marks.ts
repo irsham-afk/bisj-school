@@ -187,3 +187,32 @@ export async function getOrCreateEventAssessment(
   if (error) throw error;
   return { id: created!.id, maxScore: Number(created!.max_score) };
 }
+
+// For a given event, how many marks are entered vs total students, per class-subject the teacher has.
+export async function listEntryStatusForEvent(
+  eventId: string, classSubjectIds: string[],
+): Promise<Record<string, { entered: number; total: number }>> {
+  const out: Record<string, { entered: number; total: number }> = {};
+  if (classSubjectIds.length === 0) return out;
+  classSubjectIds.forEach((id) => (out[id] = { entered: 0, total: 0 }));
+
+  // totals: active enrolments taking each subject
+  const { data: es } = await supabase
+    .from("enrollment_subjects")
+    .select("class_subject_id, enrollment:enrollments!inner(status)")
+    .in("class_subject_id", classSubjectIds);
+  (es ?? []).forEach((r: any) => {
+    if (r.enrollment?.status === "active" && out[r.class_subject_id]) out[r.class_subject_id].total++;
+  });
+
+  // entered: results recorded under this event
+  const { data: asmts } = await supabase
+    .from("assessments").select("id, class_subject_id").eq("event_id", eventId).in("class_subject_id", classSubjectIds);
+  const byAsmt = new Map((asmts ?? []).map((a: any) => [a.id, a.class_subject_id]));
+  const ids = (asmts ?? []).map((a: any) => a.id);
+  if (ids.length) {
+    const { data: res } = await supabase.from("results").select("assessment_id").in("assessment_id", ids);
+    (res ?? []).forEach((r: any) => { const cs = byAsmt.get(r.assessment_id); if (cs && out[cs]) out[cs].entered++; });
+  }
+  return out;
+}

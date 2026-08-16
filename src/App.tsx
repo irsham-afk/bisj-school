@@ -22,6 +22,7 @@ import EventDetail from "./pages/EventDetail";
 import Promotion from "./pages/Promotion";
 import Requests from "./pages/Requests";
 import Account from "./pages/Account";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function Protected({ roles, children }: { roles: string[]; children: JSX.Element }) {
   const { profile } = useAuth();
@@ -45,6 +46,7 @@ function Shell() {
   if (!session) return <Login />;
   return (
     <Layout>
+      <ErrorBoundary>
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/account" element={<Account />} />
@@ -66,6 +68,7 @@ function Shell() {
         <Route path="/requests" element={<Protected roles={BOTH}><Requests /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </ErrorBoundary>
     </Layout>
   );
 }

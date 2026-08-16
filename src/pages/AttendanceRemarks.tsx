@@ -28,6 +28,7 @@ export default function AttendanceRemarks() {
   const [schoolDays, setSchoolDays] = useState("");
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [focusId, setFocusId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -111,18 +112,18 @@ export default function AttendanceRemarks() {
           {students.map((s) => {
             const r = rows[s.id] ?? blank();
             return (
-              <div key={s.id} className="p-3 space-y-2">
+              <div key={s.id} className={`p-3 space-y-2 transition-colors ${focusId === s.id ? "bg-brand-50 ring-1 ring-inset ring-brand/30" : ""}`}>
                 <div className="font-semibold">{s.name} <span className="text-xs text-muted font-normal">· Roll {s.admissionNo ?? "—"}</span></div>
                 <div className="flex gap-2">
                   {(["present", "tardy", "absent"] as const).map((f) => (
                     <label key={f} className="flex-1">
                       <span className="block text-[11px] uppercase tracking-wide text-muted mb-0.5">{f}</span>
-                      <input inputMode="numeric" value={r[f]} onChange={(e) => edit(s.id, f, e.target.value.replace(/[^0-9]/g, ""))}
+                      <input inputMode="numeric" value={r[f]} onFocus={() => setFocusId(s.id)} onChange={(e) => edit(s.id, f, e.target.value.replace(/[^0-9]/g, ""))}
                         className="w-full h-10 text-center border rounded-lg" placeholder="0" />
                     </label>
                   ))}
                 </div>
-                <input value={r.remark} onChange={(e) => edit(s.id, "remark", e.target.value)}
+                <input value={r.remark} onFocus={() => setFocusId(s.id)} onChange={(e) => edit(s.id, "remark", e.target.value)}
                   placeholder="Remark (appears on the report card)" className="w-full h-10 px-3 border rounded-lg text-sm" />
               </div>
             );

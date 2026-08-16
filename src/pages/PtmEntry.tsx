@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+  const [focusId, setFocusId] = useState<string | null>(null);
 import { useAuth } from "../auth/AuthProvider";
 import { Button, Card, Empty, Field, Select, useToast } from "../components/ui";
 import { listAssignments, listStudentsForSubject, type Assignment, type MarkStudent } from "../lib/marks";
@@ -148,7 +149,7 @@ export default function PtmEntry() {
               <>
                 <div className="space-y-3">
                   {subjStudents.map((s) => (
-                    <Card key={s.id}>
+                    <Card key={s.id} className={focusId === s.id ? "ring-1 ring-brand/40" : ""}>
                       <div className="p-3 space-y-3">
                         <div className="font-semibold">{s.name} <span className="text-xs text-muted font-normal">· {s.admissionNo ?? "—"}</span></div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -167,7 +168,7 @@ export default function PtmEntry() {
                           ))}
                         </div>
                         <textarea
-                          value={subjEntries[s.id]?.remark ?? ""} onChange={(e) => setRemark(s.id, e.target.value)}
+                          value={subjEntries[s.id]?.remark ?? ""} onFocus={() => setFocusId(s.id)} onChange={(e) => setRemark(s.id, e.target.value)}
                           placeholder="Remark for this student (shown on the PTM sheet)…"
                           className="w-full border border-line rounded-md p-2 text-sm min-h-[58px]" />
                       </div>
@@ -198,17 +199,17 @@ export default function PtmEntry() {
                       const e = classEntries[s.id] ?? { tardy: null, absent: null, overall_remark: "" };
                       const upd = (patch: Partial<ClassEntry>) => setClassEntries((p) => ({ ...p, [s.id]: { ...e, ...patch } }));
                       return (
-                        <div key={s.id} className="p-3 space-y-2">
+                        <div key={s.id} className={`p-3 space-y-2 transition-colors ${focusId === s.id ? "bg-brand-50 ring-1 ring-inset ring-brand/30" : ""}`}>
                           <div className="font-semibold">{s.name} <span className="text-xs text-muted font-normal">· {s.admissionNo ?? "—"}</span></div>
                           <div className="flex gap-2">
                             <label className="flex-1"><span className="text-[11px] uppercase text-muted">Tardy</span>
-                              <input type="number" min={0} value={e.tardy ?? ""} onChange={(ev) => upd({ tardy: ev.target.value === "" ? null : +ev.target.value })}
+                              <input type="number" min={0} value={e.tardy ?? ""} onFocus={() => setFocusId(s.id)} onChange={(ev) => upd({ tardy: ev.target.value === "" ? null : +ev.target.value })}
                                 className="w-full h-9 border border-line rounded-md text-center" /></label>
                             <label className="flex-1"><span className="text-[11px] uppercase text-muted">Absent</span>
-                              <input type="number" min={0} value={e.absent ?? ""} onChange={(ev) => upd({ absent: ev.target.value === "" ? null : +ev.target.value })}
+                              <input type="number" min={0} value={e.absent ?? ""} onFocus={() => setFocusId(s.id)} onChange={(ev) => upd({ absent: ev.target.value === "" ? null : +ev.target.value })}
                                 className="w-full h-9 border border-line rounded-md text-center" /></label>
                           </div>
-                          <textarea value={e.overall_remark} onChange={(ev) => upd({ overall_remark: ev.target.value })}
+                          <textarea value={e.overall_remark} onFocus={() => setFocusId(s.id)} onChange={(ev) => upd({ overall_remark: ev.target.value })}
                             placeholder="Class teacher's overall remark…" className="w-full border border-line rounded-md p-2 text-sm min-h-[58px]" />
                         </div>
                       );
