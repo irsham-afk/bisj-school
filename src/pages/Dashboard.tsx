@@ -22,31 +22,26 @@ function ActionCard({ to, label, hint }: { to: string; label: string; hint: stri
   );
 }
 
-export default function Dashboard() {
-  const { profile } = useAuth();
-  const isAdmin = profile?.role === "admin";
-
-  if (!isAdmin) {
-    // ---- teacher dashboard ----
-    const { data } = useFetch(async () => ({
-      mine: await count("class_subjects", (q) => q.eq("teacher_id", profile!.id).is("archived_at", null)),
-    }));
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="font-display text-2xl">Welcome, {profile?.full_name?.split(" ")[0] ?? "there"}</h2>
-          <p className="text-sm text-muted">You teach {data?.mine ?? "…"} class-subjects. Enter marks under the exam your admin has opened.</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <ActionCard to="/marks" label="Enter marks" hint="For the current exam" />
-          <ActionCard to="/ptm" label="PTM entry" hint="Parent-teacher notes" />
-          <ActionCard to="/requests" label="Request subject access" hint="If a class is missing" />
-        </div>
+function TeacherDashboard({ id, name }: { id: string; name: string }) {
+  const { data } = useFetch(async () => ({
+    mine: await count("class_subjects", (q) => q.eq("teacher_id", id).is("archived_at", null)),
+  }));
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-display text-2xl">Welcome, {name.split(" ")[0] || "there"}</h2>
+        <p className="text-sm text-muted">You teach {data?.mine ?? "…"} class-subjects. Enter marks under the exam your admin has opened.</p>
       </div>
-    );
-  }
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <ActionCard to="/marks" label="Enter marks" hint="For the current exam" />
+        <ActionCard to="/ptm" label="PTM entry" hint="Parent-teacher notes" />
+        <ActionCard to="/requests" label="Request subject access" hint="If a class is missing" />
+      </div>
+    </div>
+  );
+}
 
-  // ---- admin dashboard ----
+function AdminDashboard() {
   const { data, loading } = useFetch(async () => ({
     students: await count("students", (q) => q.is("archived_at", null)),
     classes: await count("classes"),
@@ -81,4 +76,10 @@ export default function Dashboard() {
       </div>
     </div>
   );
+}
+
+export default function Dashboard() {
+  const { profile } = useAuth();
+  if (profile?.role === "admin") return <AdminDashboard />;
+  return <TeacherDashboard id={profile?.id ?? ""} name={profile?.full_name ?? ""} />;
 }
