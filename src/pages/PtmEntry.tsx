@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-  const [focusId, setFocusId] = useState<string | null>(null);
 import { useAuth } from "../auth/AuthProvider";
 import { Button, Card, Empty, Field, Select, useToast } from "../components/ui";
 import { listAssignments, listStudentsForSubject, type Assignment, type MarkStudent } from "../lib/marks";
@@ -26,6 +25,7 @@ export default function PtmEntry() {
   const { profile } = useAuth();
   const toast = useToast();
   const [events, setEvents] = useState<PtmEvent[]>([]);
+  const [focusId, setFocusId] = useState<string | null>(null);
   const [eventId, setEventId] = useState("");
   const ev = events.find((e) => e.id === eventId) || null;
 
