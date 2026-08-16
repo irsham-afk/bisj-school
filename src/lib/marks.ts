@@ -10,7 +10,7 @@ export type Assignment = {
   academicYearId: string;
 };
 export type Term = { id: string; name: string; sequence: number };
-export type MarkStudent = { id: string; name: string; admissionNo: string | null };
+export type MarkStudent = { id: string; name: string; admissionNo: string | null; enrollmentId: string };
 export type ResultStatus = "graded" | "absent" | "exempt";
 export type ResultRow = { score: number | null; status: ResultStatus };
 export type GradeBand = { min: number; max: number; grade: string; isPass: boolean };
@@ -84,7 +84,7 @@ export async function getOrCreateAssessment(
 export async function listStudentsForSubject(classId: string, classSubjectId: string): Promise<MarkStudent[]> {
   const { data, error } = await supabase
     .from("enrollment_subjects")
-    .select("enrollment:enrollments!inner(class_id, status, student:students(id, first_name, last_name, admission_no))")
+    .select("enrollment:enrollments!inner(id, class_id, status, student:students(id, first_name, last_name, admission_no))")
     .eq("class_subject_id", classSubjectId);
   if (error) throw error;
   return (data ?? [])
@@ -94,6 +94,7 @@ export async function listStudentsForSubject(classId: string, classSubjectId: st
       id: e.student.id,
       name: `${e.student.first_name ?? ""} ${e.student.last_name ?? ""}`.trim(),
       admissionNo: e.student.admission_no,
+      enrollmentId: e.id,
     }))
     .sort((a: MarkStudent, b: MarkStudent) => (a.admissionNo ?? "").localeCompare(b.admissionNo ?? ""));
 }
@@ -215,4 +216,36 @@ export async function listEntryStatusForEvent(
     (res ?? []).forEach((r: any) => { const cs = byAsmt.get(r.assessment_id); if (cs && out[cs]) out[cs].entered++; });
   }
   return out;
+}
+
+
+// Teacher roster fixes on the marks screen (their own subjects only; enforced by RLS).
+export async function removeStudentFromSubject(enrollmentId: string, classSubjectId: string): Promise<void> {
+  const { error } = await supabase.from("enrollment_subjects").delete()
+    .eq("enrollment_id", enrollmentId).eq("class_subject_id", classSubjectId);
+  if (error) throw error;
+}
+
+export async function addStudentToSubject(enrollmentId: string, classSubjectId: string): Promise<void> {
+  const { error } = await supabase.from("enrollment_subjects")
+    .insert({ enrollment_id: enrollmentId, class_subject_id: classSubjectId });
+  if (error) throw error;
+}
+
+// Active students in the class who are NOT currently taking this subject.
+export async function listAddableStudents(classId: string, classSubjectId: string): Promise<MarkStudent[]> {
+  const [{ data: enrs }, { data: taken }] = await Promise.all([
+    supabase.from("enrollments").select("id, status, student:students(id, first_name, last_name, admission_no)").eq("class_id", classId).eq("status", "active"),
+    supabase.from("enrollment_subjects").select("enrollment_id").eq("class_subject_id", classSubjectId),
+  ]);
+  const has = new Set((taken ?? []).map((t: any) => t.enrollment_id));
+  return (enrs ?? [])
+    .filter((e: any) => e.student && !has.has(e.id))
+    .map((e: any) => ({
+      id: e.student.id,
+      name: `${e.student.first_name ?? ""} ${e.student.last_name ?? ""}`.trim(),
+      admissionNo: e.student.admission_no,
+      enrollmentId: e.id,
+    }))
+    .sort((a: MarkStudent, b: MarkStudent) => (a.admissionNo ?? "").localeCompare(b.admissionNo ?? ""));
 }

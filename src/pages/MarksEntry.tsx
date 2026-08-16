@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { Button, Card, useToast } from "../components/ui";
+import { Button, Card, Modal, useToast } from "../components/ui";
 import { listHomeroomClasses, type Pick } from "../lib/classadmin";
 import {
   listAssignments, listStudentsForSubject, listResults, saveResults, listEntryStatusForEvent,
+  removeStudentFromSubject, addStudentToSubject, listAddableStudents,
   listGradeBands, gradeFor, listExamEvents, examOpenForSubject,
   findEventAssessment, getOrCreateEventAssessment,
   type Assignment, type MarkStudent, type ResultStatus, type GradeBand, type ExamEvent,
@@ -42,6 +43,9 @@ export default function MarksEntry() {
   const [dirty, setDirty] = useState(false);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [status, setStatus] = useState<Record<string, { entered: number; total: number }>>({});
+  const [addOpen, setAddOpen] = useState(false);
+  const [addable, setAddable] = useState<MarkStudent[]>([]);
+  const [rosterBusy, setRosterBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -63,6 +67,27 @@ export default function MarksEntry() {
       catch { /* status is best-effort */ }
     })();
   }, [ev?.id, assignments]);
+
+  async function removeFromSubject(s2: MarkStudent) {
+    if (!asg) return;
+    if (!confirm(`Remove ${s2.name} from ${asg.subjectName}? They will no longer appear for this subject. (Any mark already saved for them here is removed.)`)) return;
+    setRosterBusy(true);
+    try { await removeStudentFromSubject(s2.enrollmentId, asg.classSubjectId); toast("Removed from subject"); await pickAssignment(asg); }
+    catch (e: any) { toast(e.message ?? "Could not remove", "error"); }
+    finally { setRosterBusy(false); }
+  }
+  async function openAddStudent() {
+    if (!asg) return;
+    setRosterBusy(true);
+    try { setAddable(await listAddableStudents(asg.classId, asg.classSubjectId)); setAddOpen(true); }
+    catch (e: any) { toast(e.message ?? "Could not load class students", "error"); }
+    finally { setRosterBusy(false); }
+  }
+  async function addToSubject(s2: MarkStudent) {
+    if (!asg) return;
+    try { await addStudentToSubject(s2.enrollmentId, asg.classSubjectId); setAddOpen(false); toast("Added to subject"); await pickAssignment(asg); }
+    catch (e: any) { toast(e.message ?? "Could not add", "error"); }
+  }
 
   async function pickAssignment(a: Assignment) {
     setAsg(a); setBusy(true);
@@ -236,12 +261,34 @@ export default function MarksEntry() {
                     {isAbsent ? <span className="inline-block px-2 h-7 leading-7 rounded-lg bg-slate-500 text-white text-xs font-bold">Ab</span>
                       : g ? <span className="inline-block px-2 h-7 leading-7 rounded-lg bg-brand text-white text-xs font-bold">{g}</span> : null}
                   </span>
+                  <button onClick={() => removeFromSubject(s)} disabled={rosterBusy} title="Remove from this subject"
+                    className="text-slate-300 hover:text-danger text-lg leading-none px-1">×</button>
                 </div>
               </div>
             );
           })}
          </div>}
       </Card>
+
+      <button onClick={openAddStudent} disabled={rosterBusy}
+        className="text-sm text-brand hover:underline">+ A student is missing? Add from this class</button>
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title={`Add a student to ${asg?.subjectName ?? ""}`}>
+        <div className="space-y-2">
+          {addable.length === 0
+            ? <p className="text-sm text-muted">Everyone in this class already takes this subject.</p>
+            : <div className="max-h-72 overflow-y-auto divide-y">
+                {addable.map((s2) => (
+                  <button key={s2.enrollmentId} onClick={() => addToSubject(s2)}
+                    className="w-full text-left p-2.5 flex items-center gap-3 hover:bg-paper">
+                    <span className="flex-1">{s2.name}</span>
+                    <span className="text-xs text-muted font-mono">{s2.admissionNo ?? ""}</span>
+                    <span className="text-brand text-sm">Add</span>
+                  </button>
+                ))}
+              </div>}
+        </div>
+      </Modal>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 flex items-center gap-3">
         <span className="flex-1 text-sm text-muted">
