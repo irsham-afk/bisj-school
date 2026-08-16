@@ -56,6 +56,8 @@ Deno.serve(async (req) => {
         await admin.auth.admin.deleteUser(created.user.id);
         return json({ ok: false, error: pErr.message });
       }
+      // Explicitly set the password (same call as reset) so the new login works immediately.
+      await admin.auth.admin.updateUserById(created.user.id, { password, email_confirm: true });
       return json({ ok: true });
     }
 
