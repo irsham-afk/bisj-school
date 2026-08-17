@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { Button, Card, Empty, Field, Input, Select, useToast } from "../components/ui";
 import {
-  getEvent, updateDeadline, listClasses, listClassesInYear, listUnlocks, reopenSubject, reopenClass, relock, listEntryProgress,
+  getEvent, updateDeadline, listClasses, listClassesInYear, listUnlocks, reopenSubject, reopenClass, relock, listEntryProgress, updateSchoolDays,
   type EventRow, type UnlockRow, type Pick, type EntryRow,
 } from "../lib/events";
 import { listClassSubjects, type CsRow } from "../lib/classadmin";
@@ -31,6 +31,8 @@ export default function EventDetail() {
   const [genBusy, setGenBusy] = useState<string | null>(null);
   const [xlsxBusy, setXlsxBusy] = useState(false);
   const [progress, setProgress] = useState<EntryRow[]>([]);
+  const [schoolDays, setSchoolDays] = useState<string>("");
+  const [sdBusy, setSdBusy] = useState(false);
 
   // reopen picker
   const [cls, setCls] = useState("");
@@ -43,7 +45,7 @@ export default function EventDetail() {
     (async () => {
       try {
         const e = await getEvent(id);
-        setEv(e); setDeadline(fmtLocalInput(e.deadline));
+        setEv(e); setSchoolDays(e.schoolDays != null ? String(e.schoolDays) : ""); setDeadline(fmtLocalInput(e.deadline));
         await reloadUnlocks();
         setClasses(await listClasses(profile!.school_id));
         const inYear = e.academicYearId ? await listClassesInYear(e.academicYearId) : await listClasses(profile!.school_id);
@@ -77,6 +79,13 @@ export default function EventDetail() {
   async function doRelock(u: UnlockRow) {
     try { await relock(u.id); setUnlocks((p) => p.filter((x) => x.id !== u.id)); toast("Re-locked"); }
     catch (e: any) { toast(e.message ?? "Failed", "error"); }
+  }
+
+  async function saveSchoolDays() {
+    setSdBusy(true);
+    try { await updateSchoolDays(id, schoolDays === "" ? null : parseInt(schoolDays, 10)); toast("School days saved"); }
+    catch (e: any) { toast(e.message ?? "Could not save", "error"); }
+    finally { setSdBusy(false); }
   }
 
   if (loading) return <Card><p className="p-4 text-muted text-sm">Loading…</p></Card>;
@@ -118,6 +127,15 @@ export default function EventDetail() {
           <span className="uppercase">{ev.kind}</span> · {ev.open ? <span className="text-ok">Open for entry</span> : <span className="text-danger">Closed (deadline passed)</span>}
         </p>
       </div>
+
+      <Card>
+        <div className="p-4 flex items-end gap-3 flex-wrap">
+          <Field label="School days (shown on report cards)">
+            <Input inputMode="numeric" value={schoolDays} onChange={(e) => setSchoolDays(e.target.value.replace(/[^0-9]/g, ""))} placeholder="e.g. 91" />
+          </Field>
+          <Button onClick={saveSchoolDays} disabled={sdBusy}>{sdBusy ? "Saving…" : "Save"}</Button>
+        </div>
+      </Card>
 
       <div>
         <h2 className="font-semibold mb-2">Entry progress</h2>

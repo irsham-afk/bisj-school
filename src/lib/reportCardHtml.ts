@@ -74,7 +74,7 @@ export function buildReportHtml(d: ClassReportData, logoUrl: string): string {
 body{margin:0;font-family:"Segoe UI",Arial,sans-serif;color:#1a1d1b;}
 .rcard{border:6px solid #152253;padding:4px;page-break-after:always;height:273mm;}
 .rcard:last-child{page-break-after:auto;}
-.inner{border:1.5px solid #b8862c;height:100%;padding:10mm 9mm;}
+.inner{border:1.5px solid #b8862c;height:100%;padding:10mm 9mm;display:flex;flex-direction:column;}
 .head{background:#152253;color:#fff;border-radius:4px;padding:10px 14px;display:flex;align-items:center;}
 .badge{width:88px;height:88px;background:#fff;border:2.5px solid #b8862c;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:16px;overflow:hidden;}
 .badge img{width:108px;height:108px;object-fit:cover;}
@@ -95,7 +95,7 @@ tr.tot td{border-top:2px solid #152253;font-weight:700;background:#eaeff7 !impor
 .remark .l{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6b7066;}
 .remark .t{font-size:14px;margin-top:3px;}
 .scale{margin-top:12px;font-size:9.5px;color:#6b7066;}
-.sign{margin-top:26px;width:100%;}
+.sign{margin-top:auto;width:100%;padding-top:20px;}
 .sign td{width:50%;text-align:center;font-size:11px;color:#6b7066;padding-top:30px;}
 .sign .ln{border-top:1px solid #1a1d1b;margin:0 18px 5px;}
 @media print{ .rcard{break-after:page;} }

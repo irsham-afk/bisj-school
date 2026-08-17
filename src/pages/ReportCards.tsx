@@ -5,6 +5,9 @@ import { listEvents, listClassesInYear, listClasses, type EventRow, type Pick } 
 import { loadClassReports, type ClassReportData } from "../lib/reportcards";
 import { buildReportHtml } from "../lib/reportCardHtml";
 import { downloadAllGradesExcel } from "../lib/excelExport";
+import { loadPtmReport } from "../lib/ptmReport";
+import { buildPtmHtml } from "../lib/ptmReportHtml";
+import { downloadPtmExcel } from "../lib/ptmExcel";
 import { supabase } from "../lib/supabase";
 
 export default function ReportCards() {
@@ -16,6 +19,7 @@ export default function ReportCards() {
   const [ev, setEv] = useState<EventRow | null>(null);
   const [classes, setClasses] = useState<Pick[]>([]);
   const [genBusy, setGenBusy] = useState<string | null>(null);
+  const [pxBusy, setPxBusy] = useState<string | null>(null);
   const [xlsxBusy, setXlsxBusy] = useState(false);
 
   useEffect(() => {
@@ -43,16 +47,29 @@ export default function ReportCards() {
     finally { setXlsxBusy(false); }
   }
 
+  async function ptmExcel(classId: string) {
+    if (!ev) return;
+    setPxBusy(classId);
+    try { await downloadPtmExcel(classId, ev.id); toast("Excel downloaded"); }
+    catch (e: any) { toast(e.message ?? "Could not build the Excel", "error"); }
+    finally { setPxBusy(null); }
+  }
+
   async function generateClass(classId: string) {
     if (!ev) return;
     setGenBusy(classId);
     try {
-      const data: ClassReportData = await loadClassReports(classId, ev.termId ?? "", ev.id);
-      const html = buildReportHtml(data, `${window.location.origin}/Logo.svg`);
+      let html: string;
+      if (ev.kind === "ptm") {
+        html = buildPtmHtml(await loadPtmReport(classId, ev.id));
+      } else {
+        const data: ClassReportData = await loadClassReports(classId, ev.termId ?? "", ev.id);
+        html = buildReportHtml(data, `${window.location.origin}/Logo.svg`);
+      }
       const w = window.open("", "_blank");
       if (!w) { toast("Allow pop-ups to open the print view", "error"); return; }
       w.document.write(html); w.document.close();
-    } catch (e: any) { toast(e.message ?? "Could not build report cards", "error"); }
+    } catch (e: any) { toast(e.message ?? "Could not build the report", "error"); }
     finally { setGenBusy(null); }
   }
 
@@ -82,28 +99,35 @@ export default function ReportCards() {
       <button onClick={() => { setEv(null); setClasses([]); }} className="text-sm text-brand">‹ Back to events</button>
       <h2 className="font-semibold text-lg">{ev.name}</h2>
 
-      <Card>
-        <div className="p-4 flex items-center gap-3 flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <div className="font-medium">Whole-school Excel</div>
-            <div className="text-xs text-muted">One file, one sheet per grade — marks from this event.</div>
+      {ev.kind === "exam" && (
+        <Card>
+          <div className="p-4 flex items-center gap-3 flex-wrap">
+            <div className="flex-1 min-w-[200px]">
+              <div className="font-medium">Whole-school Excel</div>
+              <div className="text-xs text-muted">One file, one sheet per grade — marks from this event.</div>
+            </div>
+            <Button onClick={downloadAll} disabled={xlsxBusy}>{xlsxBusy ? "Building…" : "Download Excel (all grades)"}</Button>
           </div>
-          <Button onClick={downloadAll} disabled={xlsxBusy}>{xlsxBusy ? "Building…" : "Download Excel (all grades)"}</Button>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       <div>
-        <h3 className="font-semibold mb-2">Report cards by class</h3>
+        <h3 className="font-semibold mb-2">{ev.kind === "ptm" ? "PTM sheets by class" : "Report cards by class"}</h3>
         <Card>
           <div className="divide-y">
             {classes.length === 0
               ? <p className="p-3 text-sm text-muted">No classes in this event's year.</p>
               : classes.map((c) => (
-                <button key={c.id} onClick={() => generateClass(c.id)} disabled={genBusy === c.id}
-                  className="w-full text-left p-3 flex items-center gap-3 hover:bg-paper disabled:opacity-50">
+                <div key={c.id} className="p-3 flex items-center gap-3 hover:bg-paper">
                   <span className="flex-1 font-medium">{c.name}</span>
-                  <span className="text-sm text-brand">{genBusy === c.id ? "Building…" : "Open print view ›"}</span>
-                </button>
+                  {ev.kind === "ptm" && (
+                    <button onClick={() => ptmExcel(c.id)} disabled={pxBusy === c.id} className="text-sm text-brand disabled:opacity-50">
+                      {pxBusy === c.id ? "Building…" : "Excel"}
+                    </button>
+                  )}
+                  <button onClick={() => generateClass(c.id)} disabled={genBusy === c.id}
+                    className="text-sm text-brand disabled:opacity-50">{genBusy === c.id ? "Building…" : "Print view ›"}</button>
+                </div>
               ))}
           </div>
         </Card>

@@ -18,6 +18,9 @@ export async function loadClassReports(classId: string, termId: string, eventId?
   const { data: cls, error: cErr } = await supabase
     .from("classes").select("name, school_id, homeroom_teacher_id").eq("id", classId).single();
   if (cErr) throw cErr;
+  const { data: evLabels } = eventId
+    ? await supabase.from("events").select("exam_label, year_label, name, school_days").eq("id", eventId).single()
+    : { data: null as any };
   const [{ data: school }, { data: term }, bands] = await Promise.all([
     supabase.from("schools").select("name").eq("id", cls!.school_id).single(),
     supabase.from("terms").select("name").eq("id", termId).single(),
@@ -91,7 +94,7 @@ export async function loadClassReports(classId: string, termId: string, eventId?
       name: `${e.student.first_name ?? ""} ${e.student.last_name ?? ""}`.trim(),
       subjects,
       present: rc?.days_present ?? null, tardy: rc?.days_tardy ?? null,
-      absent: rc?.days_absent ?? null, schoolDays: rc?.days_total ?? null,
+      absent: rc?.days_absent ?? null, schoolDays: (evLabels as any)?.school_days ?? rc?.days_total ?? null,
       remark: rc?.homeroom_comment ?? "",
     };
   }).sort((a, b) => (a.roll ?? "").localeCompare(b.roll ?? ""));
@@ -99,7 +102,7 @@ export async function loadClassReports(classId: string, termId: string, eventId?
   return {
     schoolName: school?.name ?? "School",
     className: cls!.name,
-    termName: term?.name ?? "",
+    termName: evLabels ? (`${(evLabels as any).exam_label ?? ""} ${(evLabels as any).year_label ?? ""}`.trim() || (evLabels as any).name || (term?.name ?? "")) : (term?.name ?? ""),
     classTeacherName,
     bands, students,
   };

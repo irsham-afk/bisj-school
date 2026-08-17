@@ -4,6 +4,7 @@ export type EventKind = "exam" | "ptm";
 export type EventRow = {
   id: string; name: string; kind: EventKind; deadline: string | null;
   academicYearId: string | null; termId: string | null; open: boolean;
+  yearLabel: string | null; examLabel: string | null; schoolDays: number | null;
 };
 export type UnlockRow = { id: string; kind: "subject" | "class"; label: string };
 export type Pick = { id: string; name: string };
@@ -14,34 +15,64 @@ function isOpen(deadline: string | null): boolean {
 
 export async function listEvents(schoolId: string): Promise<EventRow[]> {
   const { data, error } = await supabase
-    .from("events").select("id, name, kind, deadline, academic_year_id, term_id")
+    .from("events").select("id, name, kind, deadline, academic_year_id, term_id, year_label, exam_label, school_days")
     .eq("school_id", schoolId).order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map((e: any) => ({
     id: e.id, name: e.name, kind: e.kind, deadline: e.deadline,
     academicYearId: e.academic_year_id, termId: e.term_id, open: isOpen(e.deadline),
+    yearLabel: e.year_label, examLabel: e.exam_label, schoolDays: e.school_days,
   }));
 }
 
 export async function getEvent(id: string): Promise<EventRow> {
-  const { data, error } = await supabase.from("events").select("id, name, kind, deadline, academic_year_id, term_id").eq("id", id).single();
+  const { data, error } = await supabase.from("events").select("id, name, kind, deadline, academic_year_id, term_id, year_label, exam_label, school_days").eq("id", id).single();
   if (error) throw error;
   const e: any = data;
-  return { id: e.id, name: e.name, kind: e.kind, deadline: e.deadline, academicYearId: e.academic_year_id, termId: e.term_id, open: isOpen(e.deadline) };
+  return { id: e.id, name: e.name, kind: e.kind, deadline: e.deadline, academicYearId: e.academic_year_id, termId: e.term_id, open: isOpen(e.deadline), yearLabel: e.year_label, examLabel: e.exam_label, schoolDays: e.school_days };
 }
 
-export async function createEvent(schoolId: string, name: string, kind: EventKind, academicYearId: string | null, deadline: string | null, createdBy: string, termId: string | null = null) {
+export async function createEvent(
+  schoolId: string, kind: EventKind, yearLabel: string, examLabel: string, deadline: string | null, createdBy: string, schoolDays: number | null = null,
+) {
+  // Find the school's current academic year (the one classes belong to) for the plumbing term.
+  let { data: yr } = await supabase.from("academic_years").select("id").eq("school_id", schoolId).eq("is_current", true).limit(1).maybeSingle();
+  let yearId = (yr as any)?.id ?? null;
+  if (!yearId) {
+    const { data: anyY } = await supabase.from("academic_years").select("id").eq("school_id", schoolId).limit(1).maybeSingle();
+    yearId = (anyY as any)?.id ?? null;
+  }
+  // Exam events need a valid term (assessments require one, in the class's year). Create one behind the scenes.
+  let termId: string | null = null;
+  if (kind === "exam" && yearId) {
+    const { data: maxT } = await supabase.from("terms").select("sequence").eq("academic_year_id", yearId).order("sequence", { ascending: false }).limit(1).maybeSingle();
+    const seq = ((maxT as any)?.sequence ?? 0) + 1;
+    const { data: t, error: te } = await supabase.from("terms")
+      .insert({ academic_year_id: yearId, name: `${examLabel} ${yearLabel}`.trim() || `Exam ${seq}`, sequence: seq }).select("id").single();
+    if (te) throw te;
+    termId = (t as any).id;
+  }
+  const name = kind === "exam" ? `${examLabel} ${yearLabel}`.trim() : `PTM ${yearLabel}`.trim();
   const { error } = await supabase.from("events").insert({
-    school_id: schoolId, name, kind, academic_year_id: academicYearId || null, term_id: termId || null, deadline: deadline || null, created_by: createdBy,
+    school_id: schoolId, name, kind, academic_year_id: yearId, term_id: termId,
+    deadline: deadline || null, created_by: createdBy,
+    year_label: yearLabel || null, exam_label: kind === "exam" ? (examLabel || null) : null, school_days: schoolDays,
   });
+  if (error) throw error;
+}
+
+export async function deleteEvent(eventId: string) {
+  // remove marks first (results cascade from assessments), then the event (unlocks/ptm/attendance cascade)
+  await supabase.from("assessments").delete().eq("event_id", eventId);
+  const { error } = await supabase.from("events").delete().eq("id", eventId);
   if (error) throw error;
 }
 export async function updateDeadline(id: string, deadline: string | null) {
   const { error } = await supabase.from("events").update({ deadline: deadline || null }).eq("id", id);
   if (error) throw error;
 }
-export async function deleteEvent(id: string) {
-  const { error } = await supabase.from("events").delete().eq("id", id);
+export async function updateSchoolDays(id: string, schoolDays: number | null) {
+  const { error } = await supabase.from("events").update({ school_days: schoolDays }).eq("id", id);
   if (error) throw error;
 }
 

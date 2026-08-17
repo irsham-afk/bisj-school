@@ -25,7 +25,6 @@ export default function AttendanceRemarks() {
   const [cls, setCls] = useState<HomeroomClass | null>(null);
   const [students, setStudents] = useState<ClassStudent[]>([]);
   const [rows, setRows] = useState<Record<string, Row>>({});
-  const [schoolDays, setSchoolDays] = useState("");
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -47,13 +46,12 @@ export default function AttendanceRemarks() {
       const stu = await listClassStudents(c.id);
       setStudents(stu);
       const meta = await loadReportMeta(eventId, stu.map((s) => s.id));
-      const r: Record<string, Row> = {}; let sd = "";
+      const r: Record<string, Row> = {};
       stu.forEach((s) => {
         const m: Meta | undefined = meta[s.id];
         r[s.id] = m ? { present: m.present?.toString() ?? "", tardy: m.tardy?.toString() ?? "", absent: m.absent?.toString() ?? "", remark: m.remark ?? "" } : blank();
-        if (m?.schoolDays != null && sd === "") sd = m.schoolDays.toString();
       });
-      setRows(r); setSchoolDays(sd); setDirty(false);
+      setRows(r); setDirty(false);
     } catch (e: any) { toast(e.message ?? "Could not load attendance", "error"); }
     finally { setBusy(false); }
   }
@@ -66,7 +64,7 @@ export default function AttendanceRemarks() {
     if (!cls) return;
     setBusy(true);
     try {
-      await saveReportMeta(eventId, ev?.termId ?? null, numOrNull(schoolDays), profile?.full_name ?? "",
+      await saveReportMeta(eventId, ev?.termId ?? null, null, profile?.full_name ?? "",
         students.map((s) => ({
           studentId: s.id, present: numOrNull(rows[s.id].present), tardy: numOrNull(rows[s.id].tardy),
           absent: numOrNull(rows[s.id].absent), remark: rows[s.id].remark,
@@ -96,12 +94,7 @@ export default function AttendanceRemarks() {
     <div className="space-y-3 pb-24">
       <div className="flex items-center justify-between gap-2">
         <Link to="/marks" className="text-sm text-brand">‹ Back to marks entry</Link>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-muted">School days</span>
-          <input inputMode="numeric" value={schoolDays}
-            onChange={(e) => { setSchoolDays(e.target.value.replace(/[^0-9]/g, "")); setDirty(true); }}
-            className="w-16 h-9 text-center border rounded-lg" placeholder="91" />
-        </div>
+
       </div>
       <p className="text-sm text-muted">{cls.name} · {ev?.name} — attendance &amp; remarks for this event</p>
 
