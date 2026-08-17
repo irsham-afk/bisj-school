@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { Button, Card, Empty, Field, Modal, Select, useToast } from "../components/ui";
+import { Button, Card, Empty, Field, Input, Modal, Select, useToast } from "../components/ui";
 import {
   getSubjectInfo, listSubjectClasses, listClassesWithoutSubject, listTeachers,
-  setClassSubjectTeacher, removeClassSubject, addClassSubject,
+  setClassSubjectTeacher, removeClassSubject, addClassSubject, renameSubject,
   type SubjectClass, type Pick,
 } from "../lib/classadmin";
 
@@ -23,6 +23,8 @@ export default function SubjectDetail() {
   const [pickClass, setPickClass] = useState("");
   const [pickTeacher, setPickTeacher] = useState("");
   const [busy, setBusy] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
 
   async function load() {
     setLoading(true);
@@ -44,6 +46,12 @@ export default function SubjectDetail() {
     try { await removeClassSubject(r.csId); toast("Removed"); await load(); }
     catch (e: any) { toast(e.message ?? "Failed", "error"); }
   }
+  async function saveName() {
+    if (!nameDraft.trim() || !info) { setRenaming(false); return; }
+    try { await renameSubject(id, nameDraft.trim()); setInfo({ ...info, name: nameDraft.trim() }); setRenaming(false); toast("Subject renamed"); }
+    catch (e: any) { toast(e.message ?? "Could not rename", "error"); }
+  }
+
   async function openAdd() {
     setPickClass(""); setPickTeacher("");
     setFreeClasses(await listClassesWithoutSubject(profile!.school_id, id));
@@ -64,7 +72,18 @@ export default function SubjectDetail() {
       <div className="flex items-center justify-between">
         <div>
           <Link to="/subjects" className="text-sm text-brand">‹ Subjects</Link>
-          <h2 className="font-display text-2xl mt-1">{info?.name}</h2>
+          {renaming ? (
+            <div className="flex items-center gap-2 mt-1">
+              <Input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} className="max-w-[240px]" />
+              <Button onClick={saveName}>Save</Button>
+              <Button variant="ghost" onClick={() => setRenaming(false)}>Cancel</Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 mt-1">
+              <h2 className="font-display text-2xl">{info?.name}</h2>
+              <button className="text-sm text-brand hover:underline" onClick={() => { setNameDraft(info?.name ?? ""); setRenaming(true); }}>Rename</button>
+            </div>
+          )}
           <div className="font-mono text-[11px] uppercase text-muted">{info?.isElective ? "Elective" : "Core"}</div>
         </div>
         <Button onClick={openAdd}>Add to a class</Button>

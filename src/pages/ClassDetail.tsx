@@ -5,7 +5,7 @@ import {
   getClassInfo, listTeachers, listSubjects, listClassSubjects, addClassSubject,
   setClassSubjectTeacher, removeClassSubject, setHomeroom, listEnrolled,
   listEnrollableStudents, enrolStudent, unenrolStudent,
-  listEnrollmentSubjects, setEnrollmentSubjects,
+  listEnrollmentSubjects, setEnrollmentSubjects, listCsRoster, setCsRoster,
   type ClassInfo, type CsRow, type EnrolledStudent, type Pick,
 } from "../lib/classadmin";
 import { supabase } from "../lib/supabase";
@@ -34,6 +34,11 @@ export default function ClassDetail() {
   const [subjFor, setSubjFor] = useState<EnrolledStudent | null>(null);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [subjBusy, setSubjBusy] = useState(false);
+
+  // per-subject student editor (which students take a subject)
+  const [rosterFor, setRosterFor] = useState<CsRow | null>(null);
+  const [rSel, setRSel] = useState<Set<string>>(new Set());
+  const [rBusy, setRBusy] = useState(false);
 
   async function reload() {
     const [i, c, e] = await Promise.all([getClassInfo(id), listClassSubjects(id), listEnrolled(id)]);
@@ -123,6 +128,23 @@ export default function ClassDetail() {
     finally { setSubjBusy(false); }
   }
 
+  async function openRoster(row: CsRow) {
+    setRosterFor(row); setRBusy(true); setRSel(new Set());
+    try { setRSel(new Set(await listCsRoster(row.id))); }
+    catch (e: any) { toast(e.message ?? "Failed", "error"); }
+    finally { setRBusy(false); }
+  }
+  function toggleRoster(enrollmentId: string) {
+    setRSel((prev) => { const n = new Set(prev); n.has(enrollmentId) ? n.delete(enrollmentId) : n.add(enrollmentId); return n; });
+  }
+  async function saveRoster() {
+    if (!rosterFor) return;
+    setRBusy(true);
+    try { await setCsRoster(rosterFor.id, [...rSel]); toast(`Students updated for ${rosterFor.subjectName}`); setRosterFor(null); }
+    catch (e: any) { toast(e.message ?? "Failed", "error"); }
+    finally { setRBusy(false); }
+  }
+
   if (loading) return <Card><p className="p-4 text-muted text-sm">Loading…</p></Card>;
   if (!info) return <Card><p className="p-4 text-muted text-sm">Class not found.</p></Card>;
 
@@ -171,6 +193,7 @@ export default function ClassDetail() {
                     <option value="">Unassigned</option>
                     {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </Select>
+                  <button onClick={() => openRoster(r)} className="text-sm text-brand">Edit students</button>
                   <button onClick={() => dropSubject(r)} className="text-sm text-danger">Remove</button>
                 </div>
               ))}
@@ -234,6 +257,34 @@ export default function ClassDetail() {
           </div>
         </div>
       </Modal>
+      <Modal open={!!rosterFor} onClose={() => setRosterFor(null)} title={`Students taking ${rosterFor?.subjectName ?? ""}`}>
+        <div className="space-y-3">
+          <p className="text-xs text-muted">Tick every student in this class who takes {rosterFor?.subjectName}. Unticked students won't get marks or reports for it.</p>
+          {rBusy && rSel.size === 0 ? <p className="text-sm text-muted">Loading…</p> :
+           enrolled.length === 0 ? <p className="text-sm text-muted">No students enrolled in this class yet.</p> :
+           <div className="max-h-72 overflow-y-auto divide-y border rounded-lg">
+            {enrolled.map((s) => (
+              <label key={s.enrollmentId} className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-paper">
+                <input type="checkbox" checked={rSel.has(s.enrollmentId)} onChange={() => toggleRoster(s.enrollmentId)} className="w-4 h-4" />
+                <span className="text-xs text-muted font-mono w-12">{s.roll ?? "—"}</span>
+                <span className="flex-1">{s.name}</span>
+              </label>
+            ))}
+           </div>}
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-muted">{rSel.size} of {enrolled.length} selected</span>
+            <div className="flex gap-2 text-sm">
+              <button className="text-brand" onClick={() => setRSel(new Set(enrolled.map((s) => s.enrollmentId)))}>Select all</button>
+              <button className="text-brand" onClick={() => setRSel(new Set())}>Deselect all</button>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setRosterFor(null)}>Cancel</Button>
+            <Button onClick={saveRoster} disabled={rBusy}>{rBusy ? "Saving…" : "Save"}</Button>
+          </div>
+        </div>
+      </Modal>
+
       <Modal open={!!subjFor} onClose={() => setSubjFor(null)} title={`Subjects — ${subjFor?.name ?? ""}`}>
         <div className="space-y-3">
           <p className="text-xs text-muted">Tick the subjects this student takes and uncheck the ones they don't — for example a language they don't take, or an option block they didn't choose.</p>
@@ -250,10 +301,14 @@ export default function ClassDetail() {
            </div>}
           <div className="flex items-center justify-between pt-1">
             <span className="text-xs text-muted">{sel.size} of {cs.length} selected</span>
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setSubjFor(null)}>Cancel</Button>
-              <Button onClick={saveSubjects} disabled={subjBusy}>{subjBusy ? "Saving…" : "Save"}</Button>
+            <div className="flex gap-2 text-sm">
+              <button className="text-brand" onClick={() => setSel(new Set(cs.map((r) => r.id)))}>Select all</button>
+              <button className="text-brand" onClick={() => setSel(new Set())}>Deselect all</button>
             </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setSubjFor(null)}>Cancel</Button>
+            <Button onClick={saveSubjects} disabled={subjBusy}>{subjBusy ? "Saving…" : "Save"}</Button>
           </div>
         </div>
       </Modal>

@@ -192,3 +192,28 @@ export async function renameSubject(id: string, name: string) {
   const { error } = await supabase.from("subjects").update({ name }).eq("id", id);
   if (error) throw error;
 }
+
+// Which enrolments currently take a given class-subject.
+export async function listCsRoster(csId: string): Promise<string[]> {
+  const { data, error } = await supabase.from("enrollment_subjects").select("enrollment_id").eq("class_subject_id", csId);
+  if (error) throw error;
+  return (data ?? []).map((r: any) => r.enrollment_id);
+}
+
+// Replace the set of students taking a class-subject (used by the per-subject editor).
+export async function setCsRoster(csId: string, enrollmentIds: string[]): Promise<void> {
+  const { data: cur, error: e1 } = await supabase.from("enrollment_subjects").select("enrollment_id").eq("class_subject_id", csId);
+  if (e1) throw e1;
+  const current = new Set((cur ?? []).map((r: any) => r.enrollment_id));
+  const target = new Set(enrollmentIds);
+  const toAdd = enrollmentIds.filter((e) => !current.has(e));
+  const toRemove = [...current].filter((e) => !target.has(e));
+  if (toRemove.length) {
+    const { error } = await supabase.from("enrollment_subjects").delete().eq("class_subject_id", csId).in("enrollment_id", toRemove);
+    if (error) throw error;
+  }
+  if (toAdd.length) {
+    const { error } = await supabase.from("enrollment_subjects").insert(toAdd.map((e) => ({ enrollment_id: e, class_subject_id: csId })));
+    if (error) throw error;
+  }
+}
