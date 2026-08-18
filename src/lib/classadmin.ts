@@ -217,3 +217,11 @@ export async function setCsRoster(csId: string, enrollmentIds: string[]): Promis
     if (error) throw error;
   }
 }
+
+// Delete a subject entirely (removes it from every class and any stored report items).
+export async function deleteSubject(id: string): Promise<void> {
+  await supabase.from("report_card_items").delete().eq("subject_id", id);
+  await supabase.from("class_subjects").delete().eq("subject_id", id); // cascades enrolment-subjects, assessments, results
+  const { error } = await supabase.from("subjects").delete().eq("id", id);
+  if (error) throw error;
+}

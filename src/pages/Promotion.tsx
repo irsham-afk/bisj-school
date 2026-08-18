@@ -1,45 +1,29 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
-import { Button, Card, Field, Input, Select, useToast } from "../components/ui";
-import {
-  listYears, createYear, loadPromotion, runPromotion,
-  type YearRow, type PromoClass, type PromoResult,
-} from "../lib/promotion";
+import { Button, Card, useToast } from "../components/ui";
+import { loadPromotion, runPromotion, type PromoClass, type PromoResult } from "../lib/promotion";
 
 export default function Promotion() {
   const { profile } = useAuth();
   const toast = useToast();
   const schoolId = profile!.school_id;
 
-  const [years, setYears] = useState<YearRow[]>([]);
-  const [fromYear, setFromYear] = useState("");
-  const [toYear, setToYear] = useState("");
-  const [newYearName, setNewYearName] = useState("");
   const [classes, setClasses] = useState<PromoClass[]>([]);
   const [held, setHeld] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<PromoResult | null>(null);
 
+  async function reload() {
+    setClasses(await loadPromotion(schoolId)); setHeld(new Set()); setDone(null);
+  }
   useEffect(() => {
     (async () => {
-      try {
-        const ys = await listYears(schoolId);
-        setYears(ys);
-        const cur = ys.find((y) => y.isCurrent) ?? ys[0];
-        if (cur) { setFromYear(cur.id); }
-      } catch (e: any) { toast(e.message ?? "Could not load years", "error"); }
+      try { await reload(); }
+      catch (e: any) { toast(e.message ?? "Could not load students", "error"); }
       finally { setLoading(false); }
     })();
   }, []);
-
-  useEffect(() => {
-    if (!fromYear) return;
-    (async () => {
-      try { setClasses(await loadPromotion(schoolId, fromYear)); setHeld(new Set()); setDone(null); }
-      catch (e: any) { toast(e.message ?? "Could not load students", "error"); }
-    })();
-  }, [fromYear]);
 
   function toggle(id: string) {
     setHeld((h) => { const n = new Set(h); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -48,60 +32,32 @@ export default function Promotion() {
     setHeld((h) => { const n = new Set(h); c.students.forEach((s) => hold ? n.add(s.studentId) : n.delete(s.studentId)); return n; });
   }
 
-  async function addYear() {
-    if (!newYearName.trim()) return;
-    try { const id = await createYear(schoolId, newYearName.trim()); setYears(await listYears(schoolId)); setToYear(id); setNewYearName(""); toast("Year created"); }
-    catch (e: any) { toast(e.message ?? "Could not create year", "error"); }
-  }
-
   async function promote() {
-    if (!toYear) { toast("Choose the year to promote into", "error"); return; }
-    if (toYear === fromYear) { toast("The two years must be different", "error"); return; }
     const total = classes.reduce((a, c) => a + c.students.length, 0);
-    if (!confirm(`Promote ${total - held.size} students, hold back ${held.size}, into the new year? This creates their new enrolments.`)) return;
+    const gradCount = classes.filter((c) => c.graduates).reduce((a, c) => a + c.students.filter((s) => !held.has(s.studentId)).length, 0);
+    if (!confirm(`Move ${total - held.size} students up one grade and hold ${held.size} in place? ${gradCount ? `${gradCount} A-2 student(s) will graduate. ` : ""}This updates who is in each class now.`)) return;
     setBusy(true);
-    try { const r = await runPromotion(schoolId, fromYear, toYear, held); setDone(r); toast("Promotion complete"); }
+    try { const r = await runPromotion(schoolId, held); setDone(r); toast("Promotion complete"); }
     catch (e: any) { toast(e.message ?? "Promotion failed", "error"); }
     finally { setBusy(false); }
   }
 
   if (loading) return <Card><p className="p-4 text-muted text-sm">Loading…</p></Card>;
-
   const total = classes.reduce((a, c) => a + c.students.length, 0);
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-muted">Move every student up to their next grade for a new year. Everyone is ticked to promote — untick anyone who should stay in their current grade. Graduating students (A-2) are marked as graduated.</p>
-
-      <Card>
-        <div className="p-4 grid gap-3 sm:grid-cols-2">
-          <Field label="Promote FROM year">
-            <Select value={fromYear} onChange={(e) => setFromYear(e.target.value)}>
-              {years.map((y) => <option key={y.id} value={y.id}>{y.name}{y.isCurrent ? " (current)" : ""}</option>)}
-            </Select>
-          </Field>
-          <Field label="Promote INTO year">
-            <Select value={toYear} onChange={(e) => setToYear(e.target.value)}>
-              <option value="">Choose…</option>
-              {years.filter((y) => y.id !== fromYear).map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}
-            </Select>
-          </Field>
-        </div>
-        <div className="px-4 pb-4 flex items-end gap-2">
-          <Field label="…or create the next year"><Input value={newYearName} onChange={(e) => setNewYearName(e.target.value)} placeholder="2027-2028" /></Field>
-          <Button variant="ghost" onClick={addYear} disabled={!newYearName.trim()}>Create year</Button>
-        </div>
-      </Card>
+      <p className="text-sm text-muted">Move every student up to their next grade. Everyone is ticked to promote — untick anyone who should stay in their current grade. A-2 students are marked as graduated. Classes stay fixed; only who's in them changes.</p>
 
       {done ? (
         <Card><div className="p-4 text-sm">
           <div className="font-semibold text-ok mb-1">Promotion complete</div>
-          {done.promoted} promoted · {done.repeated} held back (repeating) · {done.graduated} graduated.
-          <div className="text-muted mt-2">Set the new year as current under Years &amp; terms when you're ready.</div>
+          {done.promoted} moved up · {done.repeated} held back · {done.graduated} graduated.
+          <div className="mt-3"><Button variant="ghost" onClick={reload}>Done</Button></div>
         </div></Card>
       ) : (
         <>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between sticky top-14 bg-paper py-2 z-10">
             <div className="text-sm text-muted">{total - held.size} to promote · {held.size} held back</div>
             <Button onClick={promote} disabled={busy || total === 0}>{busy ? "Promoting…" : "Promote ticked students"}</Button>
           </div>

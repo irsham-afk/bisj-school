@@ -26,6 +26,10 @@ export default function Users() {
   const [bulkDomain, setBulkDomain] = useState("bisj.school");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkResults, setBulkResults] = useState<{ name: string; email: string; ok: boolean; error?: string }[]>([]);
+  const [resetAllOpen, setResetAllOpen] = useState(false);
+  const [resetAllPass, setResetAllPass] = useState("Bisj2026!");
+  const [resetAllBusy, setResetAllBusy] = useState(false);
+  const [resetAllResults, setResetAllResults] = useState<{ name: string; email: string; ok: boolean; error?: string }[]>([]);
 
   const { data, loading, refetch } = useFetch<Profile[]>(async () => {
     const { data, error } = await supabase
@@ -77,6 +81,22 @@ export default function Users() {
     refetch();
   }
 
+  async function resetAll() {
+    if (resetAllPass.length < 8) { toast("The shared password must be at least 8 characters", "error"); return; }
+    const targets = (data ?? []).filter((u) => u.id !== profile!.id);
+    if (targets.length === 0) { toast("No other accounts to reset", "error"); return; }
+    if (!confirm(`Set the password to "${resetAllPass}" for all ${targets.length} other accounts? Each person uses it to sign in, then can change it under My account. Your own password is not changed.`)) return;
+    setResetAllBusy(true); setResetAllResults([]);
+    const results: { name: string; email: string; ok: boolean; error?: string }[] = [];
+    for (const u of targets) {
+      const r = await callAdmin({ action: "reset_password", user_id: u.id, password: resetAllPass });
+      results.push({ name: u.full_name, email: u.email ?? "", ok: !!r.ok, error: r.error });
+      setResetAllResults([...results]);
+    }
+    setResetAllBusy(false);
+    toast(`Reset ${results.filter((r) => r.ok).length} of ${targets.length}`);
+  }
+
   async function resetPassword() {
     if (!resetFor) return;
     setBusy(true);
@@ -92,6 +112,7 @@ export default function Users() {
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted">Teachers and staff who can sign in.</p>
         <div className="flex gap-2">
+          <Button variant="ghost" onClick={() => { setResetAllResults([]); setResetAllOpen(true); }}>Reset all passwords</Button>
           <Button variant="ghost" onClick={() => { setBulkResults([]); setBulkOpen(true); }}>Add many</Button>
           <Button onClick={() => setAddOpen(true)}>Add person</Button>
         </div>
@@ -186,6 +207,30 @@ export default function Users() {
             <Button onClick={bulkCreate} disabled={bulkBusy || !bulkText.trim() || bulkPass.length < 8}>
               {bulkBusy ? "Creating\u2026" : "Create all"}
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={resetAllOpen} onClose={() => setResetAllOpen(false)} title="Reset ALL passwords">
+        <div className="space-y-3">
+          <p className="text-sm text-muted">Sets the same password for every account except yours. Everyone signs in with it, then changes it themselves under My account.</p>
+          <Field label="New shared password">
+            <Input value={resetAllPass} onChange={(e) => setResetAllPass(e.target.value)} placeholder="At least 8 characters" />
+          </Field>
+          {resetAllResults.length > 0 && (
+            <div className="max-h-52 overflow-y-auto text-xs border rounded-lg divide-y">
+              {resetAllResults.map((r, i) => (
+                <div key={i} className="p-2 flex items-center gap-2">
+                  <span className={r.ok ? "text-ok" : "text-danger"}>{r.ok ? "✓" : "✗"}</span>
+                  <span className="flex-1">{r.name}</span>
+                  {!r.ok && <span className="text-danger">{r.error}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setResetAllOpen(false)}>Close</Button>
+            <Button onClick={resetAll} disabled={resetAllBusy}>{resetAllBusy ? "Resetting…" : "Reset all"}</Button>
           </div>
         </div>
       </Modal>

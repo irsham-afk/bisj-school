@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { deleteSubject } from "../lib/classadmin";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useFetch } from "../lib/useFetch";
@@ -18,6 +19,12 @@ export default function Subjects() {
     if (error) throw error;
     return data as Subject[];
   });
+
+  async function removeSubject(id: string, name: string) {
+    if (!confirm(`Delete "${name}"? This removes the subject from every class and deletes any marks recorded for it. This cannot be undone.`)) return;
+    try { await deleteSubject(id); toast("Subject deleted"); refetch(); }
+    catch (e: any) { toast(e.message ?? "Could not delete", "error"); }
+  }
 
   async function save() {
     if (!profile) return;
@@ -45,7 +52,7 @@ export default function Subjects() {
                   <td className="px-4 py-2.5 font-mono text-xs text-muted">{s.code ?? "—"}</td>
                   <td className="px-4 py-2.5"><Link to={`/subjects/${s.id}`} className="text-brand hover:underline">{s.name}</Link></td>
                   <td className="px-4 py-2.5 text-xs uppercase tracking-wide text-muted">{s.is_elective ? "Elective" : "Core"}</td>
-                  <td className="px-4 py-2.5 text-right"><Link to={`/subjects/${s.id}`} className="text-sm text-brand hover:underline">Details ›</Link></td>
+                  <td className="px-4 py-2.5 text-right whitespace-nowrap"><Link to={`/subjects/${s.id}`} className="text-sm text-brand hover:underline mr-3">Details ›</Link><button onClick={() => removeSubject(s.id, s.name)} className="text-sm text-danger hover:underline">Delete</button></td>
                 </tr>
               ))}
             </Table>

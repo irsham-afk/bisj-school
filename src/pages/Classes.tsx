@@ -22,16 +22,19 @@ export default function Classes() {
     return data as Klass[];
   });
 
+  const gradeOrder = (id: string) => grades.data?.find((g) => g.id === id)?.level_order ?? 999;
   const gradeName = (id: string) => grades.data?.find((g) => g.id === id)?.name ?? "—";
-  const yearName = (id: string) => years.data?.find((y) => y.id === id)?.name ?? "—";
+  const orderedClasses = [...(classes.data ?? [])].sort((a, b) => (gradeOrder(a.grade_level_id) - gradeOrder(b.grade_level_id)) || a.name.localeCompare(b.name));
   const teacherName = (id: string | null) => (id ? teachers.data?.find((t) => t.id === id)?.full_name ?? "—" : "—");
 
   async function save() {
     if (!profile) return;
     setBusy(true);
+    const yearId = (years.data?.find((y) => (y as any).is_current) ?? years.data?.[0])?.id;
+    if (!yearId) { setBusy(false); toast("No academic year exists yet.", "error"); return; }
     const { error } = await supabase.from("classes").insert({
       school_id: profile.school_id, name: form.name,
-      grade_level_id: form.grade_level_id, academic_year_id: form.academic_year_id,
+      grade_level_id: form.grade_level_id, academic_year_id: yearId,
       homeroom_teacher_id: form.homeroom_teacher_id || null,
     });
     setBusy(false);
@@ -41,7 +44,7 @@ export default function Classes() {
     classes.refetch();
   }
 
-  const canAdd = grades.data?.length && years.data?.length;
+  const canAdd = grades.data?.length && years.data?.length; // a year must exist (auto-assigned)
 
   return (
     <div className="space-y-4">
@@ -57,12 +60,11 @@ export default function Classes() {
           : !classes.data || classes.data.length === 0
             ? <Empty title="No classes yet" hint="Create a class to place students into." />
             : (
-              <Table head={["Class", "Grade", "Year", "Homeroom", ""]}>
-                {classes.data.map((c) => (
+              <Table head={["Class", "Grade", "Homeroom", ""]}>
+                {orderedClasses.map((c) => (
                   <tr key={c.id} className="hover:bg-paper/60">
                     <td className="px-4 py-2.5 font-medium"><Link to={`/classes/${c.id}`} className="text-brand hover:underline">{c.name}</Link></td>
                     <td className="px-4 py-2.5">{gradeName(c.grade_level_id)}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs">{yearName(c.academic_year_id)}</td>
                     <td className="px-4 py-2.5">{teacherName(c.homeroom_teacher_id)}</td>
                     <td className="px-4 py-2.5 text-right"><Link to={`/classes/${c.id}`} className="text-sm text-brand hover:underline">Open ›</Link></td>
                   </tr>
@@ -78,12 +80,6 @@ export default function Classes() {
             <Select value={form.grade_level_id} onChange={(e) => setForm({ ...form, grade_level_id: e.target.value })}>
               <option value="">Select…</option>
               {grades.data?.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </Select>
-          </Field>
-          <Field label="Academic year">
-            <Select value={form.academic_year_id} onChange={(e) => setForm({ ...form, academic_year_id: e.target.value })}>
-              <option value="">Select…</option>
-              {years.data?.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}
             </Select>
           </Field>
           <Field label="Homeroom teacher (optional)">

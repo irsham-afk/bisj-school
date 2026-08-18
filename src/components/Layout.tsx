@@ -15,7 +15,6 @@ const NAV: Item[] = [
   { to: "/students", label: "Students", roles: ["admin"], group: "Setup" },
   { to: "/classes", label: "Classes", roles: ["admin"], group: "Setup" },
   { to: "/subjects", label: "Subjects", roles: ["admin"], group: "Setup" },
-  { to: "/grades", label: "Grade levels", roles: ["admin"], group: "Setup" },
   { to: "/promotion", label: "Promote students", roles: ["admin"], group: "Setup" },
   { to: "/users", label: "Teachers & staff", roles: ["admin"], group: "Setup" },
 ];

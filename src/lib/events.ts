@@ -87,12 +87,16 @@ export async function listTerms(academicYearId: string): Promise<Pick[]> {
   return (data ?? []).map((t: any) => ({ id: t.id, name: t.name }));
 }
 export async function listClassesInYear(academicYearId: string): Promise<Pick[]> {
-  const { data, error } = await supabase.from("classes").select("id, name").eq("academic_year_id", academicYearId).order("name");
+  const { data, error } = await supabase.from("classes")
+    .select("id, name, grade_levels(level_order)").eq("academic_year_id", academicYearId)
+    .order("level_order", { foreignTable: "grade_levels", ascending: true });
   if (error) throw error;
   return (data ?? []).map((c: any) => ({ id: c.id, name: c.name }));
 }
 export async function listClasses(schoolId: string): Promise<Pick[]> {
-  const { data, error } = await supabase.from("classes").select("id, name").eq("school_id", schoolId).order("name");
+  const { data, error } = await supabase.from("classes")
+    .select("id, name, grade_levels(level_order)").eq("school_id", schoolId)
+    .order("level_order", { foreignTable: "grade_levels", ascending: true });
   if (error) throw error;
   return (data ?? []).map((c: any) => ({ id: c.id, name: c.name }));
 }
