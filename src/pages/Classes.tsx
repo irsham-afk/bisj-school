@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { gradeRank } from "../lib/promotion";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useFetch } from "../lib/useFetch";
@@ -22,9 +23,8 @@ export default function Classes() {
     return data as Klass[];
   });
 
-  const gradeOrder = (id: string) => grades.data?.find((g) => g.id === id)?.level_order ?? 999;
   const gradeName = (id: string) => grades.data?.find((g) => g.id === id)?.name ?? "—";
-  const orderedClasses = [...(classes.data ?? [])].sort((a, b) => (gradeOrder(a.grade_level_id) - gradeOrder(b.grade_level_id)) || a.name.localeCompare(b.name));
+  const orderedClasses = [...(classes.data ?? [])].sort((a, b) => (gradeRank(gradeName(a.grade_level_id)) - gradeRank(gradeName(b.grade_level_id))) || a.name.localeCompare(b.name));
   const teacherName = (id: string | null) => (id ? teachers.data?.find((t) => t.id === id)?.full_name ?? "—" : "—");
 
   async function save() {

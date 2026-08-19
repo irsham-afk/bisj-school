@@ -1,3 +1,4 @@
+import { gradeRank } from "./promotion";
 import { supabase } from "./supabase";
 
 export type EventKind = "exam" | "ptm";
@@ -87,18 +88,14 @@ export async function listTerms(academicYearId: string): Promise<Pick[]> {
   return (data ?? []).map((t: any) => ({ id: t.id, name: t.name }));
 }
 export async function listClassesInYear(academicYearId: string): Promise<Pick[]> {
-  const { data, error } = await supabase.from("classes")
-    .select("id, name, grade_levels(level_order)").eq("academic_year_id", academicYearId)
-    .order("level_order", { foreignTable: "grade_levels", ascending: true });
+  const { data, error } = await supabase.from("classes").select("id, name").eq("academic_year_id", academicYearId);
   if (error) throw error;
-  return (data ?? []).map((c: any) => ({ id: c.id, name: c.name }));
+  return (data ?? []).map((c: any) => ({ id: c.id, name: c.name })).sort((a, b) => gradeRank(a.name) - gradeRank(b.name) || a.name.localeCompare(b.name));
 }
 export async function listClasses(schoolId: string): Promise<Pick[]> {
-  const { data, error } = await supabase.from("classes")
-    .select("id, name, grade_levels(level_order)").eq("school_id", schoolId)
-    .order("level_order", { foreignTable: "grade_levels", ascending: true });
+  const { data, error } = await supabase.from("classes").select("id, name").eq("school_id", schoolId);
   if (error) throw error;
-  return (data ?? []).map((c: any) => ({ id: c.id, name: c.name }));
+  return (data ?? []).map((c: any) => ({ id: c.id, name: c.name })).sort((a, b) => gradeRank(a.name) - gradeRank(b.name) || a.name.localeCompare(b.name));
 }
 
 export async function listUnlocks(eventId: string): Promise<UnlockRow[]> {

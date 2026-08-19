@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 
 // The grade ladder. Each grade promotes to the next; A-2 graduates (no next).
 export const LADDER = ["NUR", "LKG", "UKG", "G-1", "G-2", "G-3", "G-4", "G-5", "G-6", "G-7", "O-1", "O-2", "O-3", "AS", "A-2"];
+export function gradeRank(name: string): number { const i = LADDER.indexOf(name); return i === -1 ? 999 : i; }
 export function nextGrade(name: string): string | null {
   const i = LADDER.indexOf(name);
   if (i === -1 || i === LADDER.length - 1) return null;
